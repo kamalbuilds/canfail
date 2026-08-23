@@ -1,0 +1,91 @@
+{
+  "description": "Planted defects in greenwashed-app. Every entry is a check that cannot fail, deliberately written into a suite that is 100% green. `canfail verify-fixtures` asserts that canfail finds all of them and reports nothing else, which is what stops canfail from silently degrading into a tool that always prints zero.",
+  "planted": [
+    {
+      "file": "src/scoring.test.ts",
+      "line": 12,
+      "kind": "VACUOUS",
+      "subtype": "no-assertion",
+      "note": "calls score() and asserts nothing"
+    },
+    {
+      "file": "src/scoring.test.ts",
+      "line": 19,
+      "kind": "VACUOUS",
+      "subtype": "tautological",
+      "note": "expect(true).toBe(true) holds regardless of the code"
+    },
+    {
+      "file": "src/scoring.test.ts",
+      "line": 32,
+      "kind": "VACUOUS",
+      "subtype": "skipped",
+      "note": "the one test covering the unsafe threshold is it.skip"
+    },
+    {
+      "file": "src/api.test.ts",
+      "line": 26,
+      "kind": "VACUOUS",
+      "subtype": "empty-catch",
+      "note": "catch swallows the failure so the test passes either way"
+    },
+    {
+      "file": "src/health.ts",
+      "line": 19,
+      "kind": "SILENT",
+      "subtype": "health-check-swallow",
+      "note": "database unreachable, endpoint still returns ok:true"
+    },
+    {
+      "file": "src/api.ts",
+      "line": 20,
+      "kind": "SILENT",
+      "subtype": "empty-success",
+      "note": "throttled upstream returned as an empty HTTP 200"
+    },
+    {
+      "file": "src/ui/ResultScreen.ts",
+      "line": 8,
+      "kind": "MOCK",
+      "subtype": "identifier",
+      "note": "MOCK_PRODUCT reachable from the production entry point"
+    },
+    {
+      "file": "src/ui/ResultScreen.ts",
+      "line": 18,
+      "kind": "MOCK",
+      "subtype": "hardcoded-sample",
+      "note": "fake 800ms delay in front of the placeholder so the UI looks live"
+    },
+    {
+      "file": "src/scoring.ts",
+      "line": 20,
+      "kind": "SURVIVED",
+      "note": "allergen threshold comparison can be inverted and the suite stays green"
+    },
+    {
+      "file": "src/scoring.ts",
+      "line": 21,
+      "kind": "SURVIVED",
+      "note": "the 'unsafe' verdict can be replaced with a sentinel unnoticed"
+    },
+    {
+      "file": "src/scoring.ts",
+      "line": 23,
+      "kind": "SURVIVED",
+      "note": "the 'safe' verdict can be replaced with a sentinel unnoticed"
+    },
+    {
+      "file": "src/db.ts",
+      "line": 5,
+      "kind": "SURVIVED",
+      "note": "the configuration guard can be negated without failing api.test.ts"
+    },
+    {
+      "file": "src/db.ts",
+      "line": 8,
+      "kind": "SURVIVED",
+      "note": "the returned catalogue can be replaced with a sentinel unnoticed"
+    }
+  ]
+}
