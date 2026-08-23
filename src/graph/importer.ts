@@ -172,8 +172,10 @@ export function findEntryPoints(root: string): string[] {
           if (r) out.add(r);
         }
       }
-    } catch {
-      /* malformed package.json is handled by the caller */
+    } catch (err) {
+      // Swallowing this would make a malformed package.json look like a project
+      // with no entry points, which silently disables the MOCK detector.
+      throw new Error(`could not read entry points from ${pkgPath}: ${(err as Error).message}`);
     }
   }
   for (const guess of [

@@ -4,7 +4,7 @@
 
 ---
 
-- [ ] 1. Project scaffold and toolchain setup
+- [x] 1. Project scaffold and toolchain setup
   - Initialize `package.json` with `name: "canfail"`, `type: "module"`, Node 20+ engine constraint
   - Configure `tsconfig.json` targeting ESNext with `moduleResolution: bundler`, `strict: true`
   - Install dev dependencies: `typescript`, `ts-morph`, `vitest`, `commander`, `execa`
@@ -23,7 +23,7 @@
 
 ---
 
-- [ ] 3. AST helper layer (`src/ast/index.ts`)
+- [x] 3. AST helper layer (`src/ast/index.ts`)
   - Wrap ts-morph `Project` creation with shared options (no emit, skip lib check)
   - Export `parseFile(path: string): SourceFile`
   - Export `parseInMemory(code: string, filename: string): SourceFile`
@@ -33,7 +33,7 @@
 
 ---
 
-- [ ] 4. `Finding` data model and ID generation (`src/types.ts`)
+- [x] 4. `Finding` data model and ID generation (`src/types.ts`)
   - Define all interfaces: `Finding`, `Location`, `MutantDescriptor`, `Summary`, `CanfailReport`
   - Implement `findingId(kind, file, line): string` as `sha1(kind + ":" + file + ":" + line)` using Node `crypto`
   - Implement `isSuppressed(sourceFile: SourceFile, line: number): boolean` by checking for `// canfail-ignore` on that line
@@ -42,7 +42,7 @@
 
 ---
 
-- [ ] 5. VACUOUS detector — no-assertion and tautological subtypes (`src/detectors/vacuous.ts`)
+- [x] 5. VACUOUS detector — no-assertion and tautological subtypes (`src/detectors/vacuous.ts`)
   - Walk test file AST, find all `it`/`test`/`describe` blocks
   - For each test block, collect all assertion calls using the configured `assertionFunctions` list
   - If assertion list is empty → emit `VACUOUS / no-assertion`
@@ -52,7 +52,7 @@
 
 ---
 
-- [ ] 6. VACUOUS detector — empty-catch, skipped, snapshot-only subtypes
+- [x] 6. VACUOUS detector — empty-catch, skipped, snapshot-only subtypes
   - Extend `src/detectors/vacuous.ts` with three additional checks
   - Empty catch: find `try/catch` nodes where catch body has no statements (or only comments)
   - Skipped: detect `.skip` property access on `test`/`it` or `xit`/`xdescribe` call expressions
@@ -71,7 +71,7 @@
 
 ---
 
-- [ ] 8. Import graph builder (`src/graph/importer.ts`)
+- [x] 8. Import graph builder (`src/graph/importer.ts`)
   - Build a directed graph of module imports starting from a given entry file
   - Resolve TypeScript path aliases from `tsconfig.json` via ts-morph `ModuleResolutionHost`
   - Exclude `node_modules` and `.d.ts` files
@@ -82,7 +82,7 @@
 
 ---
 
-- [ ] 9. MOCK detector (`src/detectors/mock.ts`)
+- [x] 9. MOCK detector (`src/detectors/mock.ts`)
   - Accept entry point path (from config or `package.json` main/exports inference)
   - Build import graph from entry point
   - Walk all reachable files; skip files whose resolved path is under a test directory
@@ -93,7 +93,7 @@
 
 ---
 
-- [ ] 10. SILENT detector (`src/detectors/silent.ts`)
+- [x] 10. SILENT detector (`src/detectors/silent.ts`)
   - Walk all source files in project (test and source)
   - Find `catch` blocks that contain a `return` statement with status `200`, `{ ok: true }`, or `{ status: "ok" }` unconditionally → emit `SILENT / success-on-error`
   - Find route handlers at paths matching `/health`, `/healthz`, `/ping`, `/ready`, `/live` that return `200` inside a `catch` → emit `SILENT / health-check-swallow`
@@ -104,7 +104,7 @@
 
 ---
 
-- [ ] 11. File restorer (`src/mutation/restore.ts`)
+- [x] 11. File restorer (`src/mutation/restore.ts`)
   - Export `snapshot(filePath: string): string` — reads and returns file content
   - Export `restore(filePath: string, content: string): Promise<void>` — writes content back atomically using a temp file + rename
   - If `restore` throws, rethrow with context message including original content so user can manually recover
@@ -113,7 +113,7 @@
 
 ---
 
-- [ ] 12. Mutant generator (`src/mutation/mutants.ts`)
+- [x] 12. Mutant generator (`src/mutation/mutants.ts`)
   - Accept a `SourceFile` and return `MutationTarget[]`
   - Implement four mutation kinds: comparison-swap, boolean-flip, return-sentinel, conditional-negation
   - Each `MutationTarget` contains: `node` reference, `mutation: MutationKind`, `originalText`, `mutatedText`
@@ -123,7 +123,7 @@
 
 ---
 
-- [ ] 13. Test runner bridge (`src/mutation/runner.ts`)
+- [x] 13. Test runner bridge (`src/mutation/runner.ts`)
   - Accept `testFile: string` and `config: CanfailConfig`
   - Spawn configured `testCommand` as a child process with the test file as argument, 30-second timeout
   - Return `{ passed: boolean; timedOut: boolean }`
@@ -133,7 +133,7 @@
 
 ---
 
-- [ ] 14. Mutation engine (`src/mutation/engine.ts`)
+- [x] 14. Mutation engine (`src/mutation/engine.ts`)
   - For each test file glob match, collect source imports, enumerate targets, run probe loop
   - Use `restore.ts` snapshot/restore around every probe
   - Deduplicate survived findings by `(sourceFile, sourceLine, mutation)` triple
@@ -143,7 +143,7 @@
 
 ---
 
-- [ ] 15. Orchestrator (`src/orchestrator.ts`)
+- [x] 15. Orchestrator (`src/orchestrator.ts`)
   - Run VACUOUS, MOCK, SILENT detectors (static phase) then SURVIVED (dynamic phase)
   - Collect all `Finding[]` arrays; merge and sort by file path then line number
   - Mark findings as suppressed when `isSuppressed` returns true
@@ -163,7 +163,7 @@
 
 ---
 
-- [ ] 17. CLI entry point and gate logic (`bin/canfail.ts`)
+- [x] 17. CLI entry point and gate logic (`bin/canfail.ts`)
   - Register `canfail [path]` command with options: `--json`, `--gate`, `--only <kind>`, `--config <path>`
   - After orchestrator returns report: if `findings.filter(f => !f.suppressed).length > 0` → exit `1`; else exit `0`
   - When `--gate` flag present: print gate-failed summary to stderr
@@ -173,7 +173,7 @@
 
 ---
 
-- [ ] 18. Fixture repo — `fixtures/greenwashed-app`
+- [x] 18. Fixture repo — `fixtures/greenwashed-app`
   - Create a minimal TypeScript app with `src/` and `tests/` directories
   - Plant exactly one defect per detector kind:
     - `tests/vacuous.test.ts`: a test with an empty body (VACUOUS / no-assertion)
@@ -185,7 +185,7 @@
 
 ---
 
-- [ ] 19. Fixture verifier (`src/verify-fixtures.ts`)
+- [x] 19. Fixture verifier (`src/verify-fixtures.ts`)
   - Read `canfail-manifest.json` from the fixture directory
   - Run the orchestrator against the fixture directory
   - Compare actual findings (by ID) against manifest entries
@@ -196,8 +196,44 @@
 
 ---
 
-- [ ] 20. Self-hosting CI gate and documentation
+- [x] 20. Self-hosting CI gate and documentation
   - Add `canfail` to the project's own CI workflow (`ci.yml`) as a step after tests
   - Run `canfail src/` and assert exit `0`, proving internal tests are not vacuous
   - Write `README.md` covering: installation, basic usage, all four detector kinds with examples, `--json` output schema, `canfail-ignore` suppression, `canfail verify-fixtures` command, and contributing guide
   - _Requirements: 1.1, 1.2, 7.1_
+
+---
+
+## Status at submission
+
+**17 of 20 tasks complete.** The three open boxes are deliberate deviations from the
+design, recorded here rather than quietly closed.
+
+- **Task 2 — Config loader (`src/config.ts`): not built.** Every setting the spec put
+  in `canfail.config.ts` is a CLI flag instead (`--test-command`, `--exclude`,
+  `--max-mutants`, `--timeout`, `--only`, `--max-findings`). A config file adds a
+  second source of truth and a failure mode the spec itself flags as fatal
+  ("config exists but fails to compile → exit 2"). Nothing in the tool reads a
+  config file today, so `src/config.ts` does not exist.
+
+- **Task 7 — unreachable-assertion via dead-branch data flow: implemented differently.**
+  The spec called for tracing local variable assignments to prove a branch is dead.
+  Shipped instead is the case that actually occurs in real suites: an assertion
+  reachable only from inside a `catch`, so the happy path asserts nothing
+  (`src/detectors/vacuous.ts`, requirement 2.6). Full data-flow analysis was cut
+  because its false-positive rate on real code is high and unverified.
+
+- **Task 16 — `src/report/json.ts` and `src/report/reporter.ts`: merged.** `table.ts`
+  renders the human output; JSON serialization is one `JSON.stringify` of the same
+  `CanfailReport` in `bin/canfail.ts`. Two modules and a router for that would be
+  indirection with no reader.
+
+Two things the spec did not anticipate, both added after canfail was run against
+itself and against a fresh clone:
+
+- `--exclude` (not in the spec) — needed so the self-hosting gate can scan `src/`
+  without reporting the fixture's deliberately planted defects.
+- `buildCommand` in `src/mutation/runner.ts` — the probe passed an absolute path as
+  the test-runner filename filter, which matches nothing under a symlinked root and
+  read back as "baseline red", silently skipping every probe. Covered now by
+  `src/mutation/runner.test.ts` including a real symlinked-root case.

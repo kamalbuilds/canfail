@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+
+      - name: unit tests
+        run: npx vitest run
+
+      # canfail must catch every planted defect in the fixture and report nothing
+      # else. A detector that quietly stops working turns this step red.
+      - name: fixture verification
+        run: node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app
+
+      # And the gate above must itself be capable of failing.
+      - name: prove the gate can fail
+        run: ./scripts/prove-gate-can-fail.sh
+
+      # Self-hosting gate: canfail's own tests may not be vacuous.
+      - name: canfail scans canfail
+        run: node dist/bin/canfail.js scan . --exclude fixtures --no-mutate
