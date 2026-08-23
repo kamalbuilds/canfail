@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 
-export type DetectorKind = "VACUOUS" | "SURVIVED" | "MOCK" | "SILENT";
+export type DetectorKind = "VACUOUS" | "SURVIVED" | "MOCK" | "SILENT" | "UNEARNED";
 
 export type VacuousSubtype =
   | "no-assertion"
@@ -68,7 +68,13 @@ export function findingId(kind: DetectorKind, file: string, line: number, extra 
 }
 
 export function summarize(findings: Finding[]): Summary {
-  const byKind: Record<DetectorKind, number> = { VACUOUS: 0, SURVIVED: 0, MOCK: 0, SILENT: 0 };
+  const byKind: Record<DetectorKind, number> = {
+    VACUOUS: 0,
+    SURVIVED: 0,
+    MOCK: 0,
+    SILENT: 0,
+    UNEARNED: 0,
+  };
   let suppressed = 0;
   for (const f of findings) {
     if (f.suppressed) {

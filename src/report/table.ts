@@ -18,6 +18,7 @@ const KIND_COLOR: Record<DetectorKind, (s: string) => string> = {
   SURVIVED: red,
   MOCK: red,
   SILENT: yellow,
+  UNEARNED: red,
 };
 
 const KIND_EXPLAIN: Record<DetectorKind, string> = {
@@ -25,6 +26,7 @@ const KIND_EXPLAIN: Record<DetectorKind, string> = {
   SURVIVED: "code was broken, test stayed green",
   MOCK: "placeholder data reachable in production",
   SILENT: "failure reported as success",
+  UNEARNED: "new test passes on the code it predates",
 };
 
 export function renderTable(report: CanfailReport, root: string): string {
@@ -66,7 +68,7 @@ export function renderTable(report: CanfailReport, root: string): string {
 
   const s = report.summary;
   const parts: string[] = [];
-  for (const kind of ["VACUOUS", "SURVIVED", "MOCK", "SILENT"] as DetectorKind[]) {
+  for (const kind of ["VACUOUS", "SURVIVED", "MOCK", "SILENT", "UNEARNED"] as DetectorKind[]) {
     if (s.byKind[kind] > 0) parts.push(`${s.byKind[kind]} ${kind} (${KIND_EXPLAIN[kind]})`);
   }
   lines.push(bold(`  ${s.total} checks that cannot fail`));

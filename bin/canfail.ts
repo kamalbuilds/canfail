@@ -13,6 +13,7 @@ import { renderTable } from "./../src/report/table.js";
 import { scan, VERSION } from "./../src/orchestrator.js";
 import type { DetectorKind } from "./../src/types.js";
 import { verifyFixtures } from "./../src/verify-fixtures.js";
+import { prove } from "./../src/prove.js";
 
 const ALL_KINDS: DetectorKind[] = ["VACUOUS", "SURVIVED", "MOCK", "SILENT"];
 
@@ -92,6 +93,55 @@ program
   });
 
 program
+  .command("prove")
+  .description("require every changed test to fail against the base revision of the code it covers")
+  .argument("[path]", "git repository root", ".")
+  .option("--base <ref>", "revision the tests must fail against", "HEAD~1")
+  .option("--test-command <cmd>", "command that runs one test file", "npx vitest run")
+  .option("--timeout <ms>", "per-test-run timeout", "60000")
+  .option("--json", "emit findings as JSON", false)
+  .option("-q, --quiet", "suppress progress output on stderr", false)
+  .action((path: string, options: Record<string, unknown>) => {
+    const root = resolve(String(path));
+    const quiet = Boolean(options.quiet) || Boolean(options.json);
+    try {
+      const result = prove({
+        root,
+        base: String(options.base),
+        testCommand: String(options.testCommand),
+        timeoutMs: Number(options.timeout),
+        onProgress: quiet ? undefined : (m) => process.stderr.write(`  ${m}\n`),
+      });
+
+      if (options.json) {
+        process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      } else {
+        process.stdout.write("\n");
+        for (const e of result.earned) {
+          process.stdout.write(`  EARNED   ${e}\n           failed against ${options.base}, as a new test should\n`);
+        }
+        for (const f of result.findings.filter((x) => !x.suppressed)) {
+          process.stdout.write(`  UNEARNED ${relative(root, f.location.file)}\n           ${f.message}\n`);
+        }
+        for (const s of result.skipped) {
+          process.stdout.write(`  skipped  ${s.file}\n           ${s.reason}\n`);
+        }
+        const unearned = result.findings.filter((x) => !x.suppressed).length;
+        process.stdout.write(
+          unearned === 0
+            ? `\n  ${result.earned.length} changed test(s), every one of them failed before the change\n\n`
+            : `\n  ${unearned} test(s) that would not have caught the change they ship with\n\n`,
+        );
+      }
+
+      process.exit(result.findings.filter((x) => !x.suppressed).length > 0 ? 1 : 0);
+    } catch (err) {
+      process.stderr.write(`canfail: ${(err as Error).message}\n`);
+      process.exit(2);
+    }
+  });
+
+program
   .command("verify-fixtures")
   .description("run canfail against a fixture repo with planted defects and assert every one is caught")
   .argument("[path]", "fixture root containing canfail-manifest.json", "fixtures/greenwashed-app")
@@ -128,4 +178,3 @@ program
   });
 
 program.parse();
-void relative;

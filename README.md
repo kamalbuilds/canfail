@@ -64,8 +64,44 @@ And the general case, which is what `SURVIVED` is for: a test that calls the rig
 | `SURVIVED` | tests that are green for the wrong reason | mutation probe: break a line the test imports, re-run only that test file, report if it stayed green |
 | `MOCK` | placeholder data users can reach | import graph from the real entry point; a mock in `__mocks__` or a `.test.ts` is fine, a mock reachable from `src/index.ts` is a shipped lie. Reports the import chain. |
 | `SILENT` | failures reported as success | AST: `return true` / `ok: true` / `200` from inside a `catch`, health checks that swallow, HTTP 200 with an empty body |
+| `UNEARNED` | a new test that never could have failed | `canfail prove`: revert the changed source to its base revision, run the changed tests against that old code, require red |
 
-`VACUOUS`, `MOCK` and `SILENT` are static and take under a second. `SURVIVED` runs your tests repeatedly and is the slow one; `--no-mutate` skips it.
+`VACUOUS`, `MOCK` and `SILENT` are static and take under a second. `SURVIVED` runs your tests repeatedly and is the slow one; `--no-mutate` skips it. `UNEARNED` is a separate command because it needs git history.
+
+**On prior art:** `expect-expect` and `no-disabled-tests` in [eslint-plugin-vitest](https://github.com/vitest-dev/eslint-plugin-vitest), and Biome's `noSkippedTests`, already cover four of the six `VACUOUS` subtypes, and [StrykerJS](https://stryker-mutator.io/) is a better mutation tester than this one. That is written out honestly in [PRIOR-ART.md](PRIOR-ART.md), along with the four things nothing else does. If you only read one section of this repo, read that one.
+
+## canfail prove: the check no CI runs
+
+Every CI system enforces that your tests **pass on the branch**. None enforces that a new test would have **failed on the base commit**.
+
+That gap is exactly where AI-assisted development leaks: when the same session writes the fix and the test, the test tends to describe the implementation instead of pinning the behaviour. Green before the change, green after it. Coverage goes up. Nothing was constrained.
+
+```bash
+./scripts/demo-prove.sh     # builds a throwaway git repo in /tmp, touches nothing else
+```
+
+The base commit has an off-by-one: `total > 100` where it should be `>= 100`. The fix is applied, and two different tests are written alongside it. **Both pass on the branch.**
+
+```
+Test A: "gives the discount on a large basket"       assert discountFor(500) === 10
+
+$ canfail prove --base HEAD
+  UNEARNED src/discount.test.js
+           passes against HEAD with src/discount.js reverted: this test would not
+           have failed before the change
+  exit 1
+
+Test B: "gives the discount exactly at the threshold"  assert discountFor(100) === 10
+
+$ canfail prove --base HEAD
+  EARNED   src/discount.test.js
+           failed against HEAD, as a new test should
+  exit 0
+```
+
+Every CI in the world accepts both. Only one of them would have caught the bug.
+
+Source files are reverted with `git show`, and a file that did not exist at the base revision is moved aside rather than deleted, so an interrupted run never destroys new work. The working tree is restored on every path and verified afterwards.
 
 ## Quickstart
 
@@ -230,6 +266,9 @@ This project was specified before it was written, and the specs are in the repo.
 - `tasks.md`: 20 checkboxed implementation tasks, each carrying a `_Requirements: x.y_` back-reference.
 
 The traceability is real and load-bearing: the header of each detector cites the criteria it implements (`vacuous.ts` → Requirements 2.1–2.6, `mock.ts` → 4.1–4.4, `silent.ts` → 5.1–5.4, `engine.ts` → 3.1–3.7). Design decisions that survived into the code unchanged include the unconditional-restore rule (3.5), treating a timeout as a killed mutant (3.6), and the per-test mutant budget (3.7).
+
+**A second spec, written honestly** — `.kiro/specs/unearned-tests/`
+- `canfail prove` was built *before* its spec, during a prior-art review late in the day. The spec exists now — 5 user stories, 22 EARS criteria, 20 tasks — and its first section is a `## Provenance` note stating plainly that this feature was not spec-first, unlike the other one. Recording that is worth more than a spec set that pretends.
 
 **Steering** — `.kiro/steering/`
 - `product.md`: what canfail is, four target personas, non-goals.

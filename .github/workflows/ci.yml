@@ -32,6 +32,11 @@ jobs:
       - name: prove the gate can fail
         run: ./scripts/prove-gate-can-fail.sh
 
+      # canfail prove, end to end against a throwaway git repo: the greenwashed
+      # test must exit 1 and the honest one must exit 0.
+      - name: prove demo
+        run: ./scripts/demo-prove.sh
+
       # Self-hosting gate: canfail's own tests may not be vacuous.
       - name: canfail scans canfail
         run: node dist/bin/canfail.js scan . --exclude fixtures --no-mutate

@@ -1,6 +1,8 @@
 # Demo video script
 
-Target length **2:45**. Terminal track is one command: `./scripts/demo-run.sh` (each beat pauses ~4s for narration; `PAUSE=6` for a slower read).
+Target length **3:00**. Terminal track is one command: `./scripts/demo-run.sh` (each beat pauses ~4s for narration; `PAUSE=6` for a slower read).
+
+If you have to cut for time, cut beats 1 and 8. **Do not cut beat 4 (`canfail prove`)** — it is the only part with no prior art, and it carries the innovation score.
 
 Record the terminal at a readable font size. Say the words below in your own voice — do not use a synthetic narrator.
 
@@ -30,7 +32,17 @@ Record the terminal at a readable font size. Say the words below in your own voi
 
 *(beat 3)*
 
-**1:35 – 2:10 — proving the tool itself**
+**1:35 – 2:05 — the check no CI runs** *(lead with this if you cut anything else)*
+
+> Here is the part I could not find anywhere else. Every CI system enforces that your tests pass on the branch. None of them enforces that a new test would have failed on the base commit.
+>
+> Same bug, an off-by-one at a threshold. Same fix. Two different tests written alongside it, and both are green. canfail reverts the source to the base commit and runs each test against the old code. One of them fails there, which means it earned its place. The other passes, which means it would never have caught the bug it ships with.
+>
+> Every CI in the world accepts both. This one exits 1.
+
+*(beat 4)*
+
+**2:05 – 2:30 — proving the tool itself**
 
 > A scanner that prints "zero problems" is indistinguishable from a scanner that is broken. So the fixture ships a manifest of every defect planted in it, and canfail has to find all of them and report nothing else.
 >
