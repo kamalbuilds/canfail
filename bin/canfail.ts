@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * canfail CLI. Requirements 1.1 - 1.5, 6.1 - 6.5, 7.1.
+ * canfail CLI. Requirements 1.1 - 1.4, 6.1 - 6.4, 7.1 - 7.4.
  *
  * Exit codes:
  *   0  gate passed
  *   1  gate failed (findings above threshold)
- *   2  canfail could not run (bad path, unrestorable file, malformed config)
+ *   2  canfail could not run (bad path, invalid options, unrestorable file)
  */
 import { Command } from "commander";
 import { relative, resolve } from "node:path";

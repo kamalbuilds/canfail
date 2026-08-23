@@ -1,10 +1,12 @@
 # canfail
 
+[![CI](https://github.com/kamalbuilds/canfail/actions/workflows/ci.yml/badge.svg)](https://github.com/kamalbuilds/canfail/actions/workflows/ci.yml)
+
 **Your test suite is green. That is not the same as your tests being able to go red.**
 
 `canfail` is a CLI and CI gate that finds checks which cannot fail: tests that assert nothing, tests that swallow the failure they were written to catch, health endpoints that report success while the dependency underneath is down, placeholder data sitting in a code path a real user can reach, and new tests that would have passed against the code they were written for.
 
-The static detectors are TypeScript and JavaScript. `canfail prove` works in **any language whose tests live in their own files** — verified against Go, and TypeScript, in CI on every push.
+The static detectors (VACUOUS, MOCK, SILENT) and mutation probe (SURVIVED) are TypeScript and JavaScript. `canfail prove` is language-agnostic at its core: it needs git history, a way to recognise a test file, and a command that exits non-zero on failure. Built-in recognition covers TypeScript, JavaScript, Go, Python, Rust integration tests, Ruby, and Java. Only TypeScript/JavaScript and Go are end-to-end verified in CI on every push.
 
 It does not trust the green checkmark. For the tests that look real, it breaks the code they cover, re-runs them, and reports the ones that stayed green anyway.
 
@@ -64,7 +66,7 @@ The base commit has an off-by-one: `total > 100` where it should be `>= 100`. Th
 
 Every CI in the world accepts both. Only one of them would have caught the bug.
 
-Source files are reverted with `git show`, and a file that did not exist at the base revision is moved aside rather than deleted, so an interrupted run never destroys new work. The working tree is restored on every path and verified afterwards.
+Source files are reverted with `git show`, and a file that did not exist at the base revision is moved aside rather than deleted, so an in-process failure never deletes new work. The working tree is restored on every in-process path and verified afterwards.
 
 ### prove is not TypeScript-specific
 
@@ -84,40 +86,49 @@ canfail prove --base main --test-command "python -m pytest {file}"
 canfail prove --base main --test-command "npx vitest run"        # path appended
 ```
 
-**Support matrix — "verified" means exercised in CI on every push, not asserted:**
+**Support matrix - "verified" means exercised in CI on every push, not asserted:**
 
 | | `prove` (UNEARNED) | `scan` (VACUOUS / SURVIVED / MOCK / SILENT) |
 |---|---|---|
-| TypeScript, JavaScript | **verified** — import-closure scoped | **verified** |
-| Go | **verified** — real `go test` module in CI | not supported |
+| TypeScript, JavaScript | **verified** - import-closure scoped | **verified** |
+| Go | **verified** - real `go test` module in CI | not supported |
 | Python (`test_*.py`, `*_test.py`) | pattern supported, **not verified** | not supported |
 | Ruby (`*_spec.rb`, `*_test.rb`), Java (`*Test.java`) | pattern supported, **not verified** | not supported |
-| Rust | `tests/*.rs` only — see below | not supported |
+| Rust | `tests/*.rs` only - see below | not supported |
 
 Two honest limits:
 
 - **Rust unit tests cannot be checked.** Idiomatic Rust puts them in `#[cfg(test)] mod tests` inside the source file. Reverting that file to its base revision deletes the test being evaluated, so canfail detects this and skips with that reason printed rather than reporting a misleading pass. Integration tests under `tests/` work normally.
-- **Only TypeScript and JavaScript get import-closure scoping.** Every other language reverts the whole changed surface of the same language, which is the stricter reading of the invariant — the test must fail against the change as a whole. Python, Ruby and Java are pattern-supported and have unit-tested detection, but no end-to-end run in CI, so they are listed as unverified.
+- **Only TypeScript and JavaScript get import-closure scoping.** Every other language reverts the whole changed surface of the same language, which is the stricter reading of the invariant - the test must fail against the change as a whole. Python, Ruby and Java are pattern-supported and have unit-tested detection, but no end-to-end run in CI, so they are listed as unverified.
 
 The AST detectors do not port tonight. Writing a Go or Python parser for `VACUOUS` / `MOCK` / `SILENT` is real work and claiming it without a fixture would be exactly the defect this tool exists to catch.
 
-## Quickstart
+### Real-repository proof: KiroCrew
 
-Requires Node 20+. No API keys, no network calls, no accounts. `canfail` never makes an outbound request.
+[`scripts/demo-prove-kirocrew.sh`](scripts/demo-prove-kirocrew.sh) checks two agent-generated Python tests in a throwaway git repository using `_word_count` behavior adapted from [John Crickett's public KiroCrew fork](https://github.com/JohnCrickett/KiroCrew) at commit [`98e5150`](https://github.com/JohnCrickett/KiroCrew/commit/98e515028fbfc9946b56c491b7d16cdee357772c). Both tests pass after the synthetic boundary fix. The broad test is `UNEARNED`; the exact-boundary test is `EARNED`.
 
 ```bash
-git clone <this repo> && cd canfail
-npm install
 npm run build
+./scripts/demo-prove-kirocrew.sh
+```
 
-# The demo. A fully green test suite with 13 planted defects.
+This is deliberately **not** presented as a defect in KiroCrew or a scan of its test suite. The wrapper, boundary bug, and tests are demo-generated; only the small token-counting behavior comes from the Apache-2.0 project. The script requires Python 3 and pytest, installs nothing, modifies nothing outside `/tmp`, and names the pinned source revision so the result is reproducible.
+
+## Quickstart
+
+Requires Node 20+. No API keys, no network calls, no accounts, no rate limits. `canfail` never makes an outbound request and has zero ongoing cost.
+
+```bash
+git clone https://github.com/kamalbuilds/canfail.git && cd canfail
+npm install && npm run build
+
+# The demo: a fully green test suite with 13 planted defects
 npm run demo
 
-# The negative case: a small module whose tests genuinely constrain it.
-# Every mutant is killed, zero findings, exit 0.
+# The negative case: a small module whose tests genuinely constrain it
 npm run demo:clean
 
-# The full test suite: 59 tests, including CLI integration tests
+# The full test suite: 78 tests, including 31 integration tests
 npm test
 
 # The gate on your own project
@@ -158,9 +169,9 @@ Running the tool on its own source is not a stunt; it is the only honest way to 
 node dist/bin/canfail.js scan . --exclude fixtures
 ```
 
-The first self-scan returned 23 findings. Two were **false positives in canfail itself**, and both are now fixed: pattern constants like `MOCK_ID_RE` were being reported as reachable mock data, and `catch` blocks that report through a callback were being read as silent swallows. Both fixes are in `src/detectors/mock.ts` and `src/detectors/silent.ts`, and `verify-fixtures` still matches 13/13 afterwards, which is exactly the regression the `.kiro` hook guards.
+The first self-scan returned 23 findings. Two were **false positives in canfail itself**, and both are now fixed: pattern constants like `MOCK_ID_RE` were being reported as reachable mock data, and `catch` blocks that report through a callback were being read as silent swallows. Both fixes are in `src/detectors/mock.ts` and `src/detectors/silent.ts`, and `verify-fixtures` still matches 13/13 afterwards, which is exactly the regression the [`.kiro` hook](.kiro/hooks/verify-fixtures-on-detector-change.json) guards.
 
-Six were genuine `SURVIVED` findings — real gaps in canfail's own test suite:
+Six genuine `SURVIVED` findings exposed four distinct gaps in canfail's own test suite:
 
 | Mutant that survived | What it proved was untested | Test added |
 |---|---|---|
@@ -169,20 +180,43 @@ Six were genuine `SURVIVED` findings — real gaps in canfail's own test suite:
 | `file.endsWith(".tsx")` negated in `mutants.ts` | `.tsx` files were parsed as plain TypeScript and nothing noticed | "parses a .tsx file as JSX rather than as plain TypeScript" |
 | `snapshot()` return replaced with a sentinel in `restore.ts` | nothing asserted on what the guard hands back | "returns the original content from snapshot()" |
 
-The suite went from 28 to 33 tests as a direct result. That is the tool doing its job on its author.
+The suite went from 28 to 33 tests as a direct result of that self-scan. That is the tool doing its job on its author. The current suite stands at 78 tests after adding `canfail prove`, multi-language detection, the crash journal, and their integration tests.
+
+## Agent workflow
+
+A recommended CI configuration for AI-assisted teams, from fast to thorough:
+
+```yaml
+# On every PR (seconds)
+- run: canfail scan . --no-mutate              # static: VACUOUS + MOCK + SILENT
+
+# On every PR with git history (seconds per test)
+- run: canfail prove --base origin/main        # UNEARNED: new tests must go red on base
+
+# Standard verification
+- run: npm test                                 # the test suite itself
+
+# Nightly (minutes, samples the mutation space)
+- run: canfail scan . --max-mutants 5          # SURVIVED: break source, require red
+```
+
+No accounts. No API keys. No rate limits. Fully offline, fully deterministic.
 
 ## Usage
 
 ```
 canfail scan [path]                  scan a project (default command)
+canfail prove [path]                 check new tests would have failed on base
 canfail verify-fixtures [path]       assert every planted defect in a manifest is caught
 
-  --json                    machine-readable CanfailReport on stdout
+  --json                    machine-readable output on stdout
   --no-mutate               static detectors only, skip the mutation probe
-  --test-command <cmd>      command that runs one test file (inferred from package.json)
+  --base <ref>              base revision for prove                   [HEAD~1]
+  --test-command <cmd>      command that runs one test file (scan can infer JS runners)
   --timeout <ms>            per-test-run timeout during probing        [30000]
   --max-mutants <n>         mutants attempted per test file            [12]
   --only <kinds>            VACUOUS,SURVIVED,MOCK,SILENT
+  --exclude <paths>         comma-separated path substrings to skip
   --max-findings <n>        gate threshold: fail above this many       [0]
   -q, --quiet               no progress output on stderr
 ```
@@ -196,6 +230,7 @@ Suppress a deliberate case with `// canfail-ignore` on or above the line; exclud
 ```yaml
 - run: npm ci && npm run build
 - run: node dist/bin/canfail.js scan . --no-mutate          # fast gate on every PR
+- run: node dist/bin/canfail.js prove --base origin/main    # new tests must earn it
 - run: node dist/bin/canfail.js scan . --max-mutants 5      # nightly, with the probe
 ```
 
@@ -205,13 +240,13 @@ For each test file, in order:
 
 1. Run the test file untouched. If it is already red, skip it: a failing suite proves nothing about mutants.
 2. Resolve the first-party source files that test file transitively imports.
-3. Generate mutants from a fixed catalogue: comparison swap (`>=` → `>`), boolean flip, return-sentinel, conditional negation. Deterministic and sorted, so two runs produce the identical list.
+3. Generate mutants from a fixed catalogue: comparison swap (`>=` to `>`), boolean flip, return-sentinel, conditional negation. Deterministic and sorted, so two runs produce the identical list.
 4. For each mutant: snapshot the file, apply the mutation to disk, re-run **only that test file**, restore the file unconditionally.
 5. Exit code `0` from the test run means the mutant survived: nothing in the suite depended on that line being correct.
 
 **Restoration is a hard invariant, and it has one hole that no in-process code can close.** Files are restored on success, on failure, on timeout, on `SIGINT` and on `SIGTERM`. After the loop, `canfail` re-reads every touched file against its snapshot and aborts with exit code `2` rather than leave mutated source on disk.
 
-`SIGKILL` cannot be trapped. **This bit this repo.** While generating the README images, the screen-capture tool hit its own timeout and SIGKILLed canfail mid-probe. No handler ran, `fixtures/greenwashed-app/src/scoring.ts` was left with `containsAllergen` returning `"__canfail_sentinel__"`, and it went into a commit. It surfaced three commits later as a CI failure that looked like something else entirely — a green-looking local run, a broken artifact, exactly the defect class this tool is named after.
+`SIGKILL` cannot be trapped. **This bit this repo.** While generating the README images, the screen-capture tool hit its own timeout and SIGKILLed canfail mid-probe. No handler ran, `fixtures/greenwashed-app/src/scoring.ts` was left with `containsAllergen` returning `"__canfail_sentinel__"`, and it went into a commit. It surfaced three commits later as a CI failure that looked like something else entirely - a green-looking local run, a broken artifact, exactly the defect class this tool is named after.
 
 Two fixes, both in the repo:
 
@@ -227,6 +262,8 @@ A timeout counts as a **killed** mutant, not a survivor. A hung test is evidence
 ```
 bin/canfail.ts            CLI, exit codes
 src/orchestrator.ts       sequences detectors, assembles the report
+src/prove.ts              canfail prove: UNEARNED detection, RevertGuard, per-test loop
+src/lang.ts               multi-language test-file detection (TS/JS/Go/Python/Rust/Ruby/Java)
 src/detectors/
   vacuous.ts              VACUOUS   (static, AST)
   mock.ts                 MOCK      (static, import graph)
@@ -236,6 +273,7 @@ src/mutation/
   engine.ts               probe loop, dedupe, budget
   runner.ts               spawns the test command, reads the exit code
   restore.ts              snapshot / restore / verifyClean
+  journal.ts              crash journal: records in-flight mutations, repairs on next run
 src/graph/importer.ts     import resolution, reachability, shortest import chain
 src/report/table.ts       human output
 src/verify-fixtures.ts    manifest comparison
@@ -248,24 +286,25 @@ fixtures/greenwashed-app  a green suite with 13 planted defects
 
 This project was specified before it was written, and the specs are in the repo.
 
-**Spec-driven development** — `.kiro/specs/vacuity-detection/`
-- `requirements.md`: 7 user stories, 28 numbered acceptance criteria in EARS syntax (`WHEN … THEN the system SHALL …`). Every detector behaviour traces to one.
-- `design.md`: the mermaid architecture diagram, the module boundary table, the `Finding` / `MutantDescriptor` / `CanfailReport` interfaces implemented verbatim in `src/types.ts`, the six-step probe algorithm, an eight-row error-handling table, and seven explicit non-goals.
-- `tasks.md`: 20 checkboxed implementation tasks, each carrying a `_Requirements: x.y_` back-reference.
+**Spec-driven development** - [`.kiro/specs/vacuity-detection/`](.kiro/specs/vacuity-detection/)
+- [`requirements.md`](.kiro/specs/vacuity-detection/requirements.md): 7 user stories, 32 numbered acceptance criteria in EARS syntax (`WHEN ... THEN the system SHALL ...`). Every detector behaviour traces to one.
+- [`design.md`](.kiro/specs/vacuity-detection/design.md): the mermaid architecture diagram, the module boundary table, the `Finding` / `MutantDescriptor` / `CanfailReport` interfaces implemented verbatim in `src/types.ts`, the six-step probe algorithm, an eight-row error-handling table, and seven explicit non-goals.
+- [`tasks.md`](.kiro/specs/vacuity-detection/tasks.md): 20 implementation tasks, each carrying a `_Requirements: x.y_` back-reference. 17 are checked off; the Status section records three explicit implementation deviations rather than quietly closing them: config-file settings became CLI flags, full dead-branch analysis became the lower-false-positive catch-only case, and direct JSON serialization replaced two one-line reporter modules.
 
-The traceability is real and load-bearing: the header of each detector cites the criteria it implements (`vacuous.ts` → Requirements 2.1–2.6, `mock.ts` → 4.1–4.4, `silent.ts` → 5.1–5.4, `engine.ts` → 3.1–3.7). Design decisions that survived into the code unchanged include the unconditional-restore rule (3.5), treating a timeout as a killed mutant (3.6), and the per-test mutant budget (3.7).
+The traceability is real and load-bearing: the header of each detector cites the criteria it implements (`vacuous.ts` -> Requirements 2.1-2.6, `mock.ts` -> 4.1-4.4, `silent.ts` -> 5.1-5.4, `engine.ts` -> 3.1-3.6). Requirements that survived unchanged include the deterministic mutation catalogue (3.1), unconditional restoration after every probe (3.4), and `canfail-no-mutate` suppression (3.6). Timeout handling and the per-test budget are additional safety constraints documented in the design and CLI.
 
-**A second spec, written honestly** — `.kiro/specs/unearned-tests/`
-- `canfail prove` was built *before* its spec, during a prior-art review late in the day. The spec exists now — 5 user stories, 22 EARS criteria, 20 tasks — and its first section is a `## Provenance` note stating plainly that this feature was not spec-first, unlike the other one. Recording that is worth more than a spec set that pretends.
+**A second spec, written honestly** - [`.kiro/specs/unearned-tests/`](.kiro/specs/unearned-tests/)
+- `canfail prove` was built *before* its spec, during a prior-art review late in the day. The spec exists now - 6 user stories, 28 EARS criteria, 26 tasks - and its first section is a `## Provenance` note stating plainly that this feature was not spec-first, unlike the other one. Recording that is worth more than a spec set that pretends.
 
-**Steering** — `.kiro/steering/`
-- `product.md`: what canfail is, four target personas, non-goals.
-- `tech.md`: Node 20+, ESM, TypeScript strict, ts-morph for AST work, and three hard constraints Kiro enforced across every file it touched: **no network calls, no paid APIs, no untrusted code execution**.
-- `structure.md`: directory layout, naming conventions, and the import-boundary rules between modules.
+**Steering** - [`.kiro/steering/`](.kiro/steering/)
+- [`product.md`](.kiro/steering/product.md): what canfail is, four target personas, non-goals.
+- [`tech.md`](.kiro/steering/tech.md): Node 20+, ESM, TypeScript strict, ts-morph for AST work, and three hard constraints Kiro enforced across every file it touched: **no network calls, no paid APIs, no untrusted code execution**.
+- [`structure.md`](.kiro/steering/structure.md): directory layout, naming conventions, and the import-boundary rules between modules.
 
-**Agent hooks** — `.kiro/hooks/verify-fixtures-on-detector-change.json`
+**Agent hooks** - [`.kiro/hooks/verify-fixtures-on-detector-change.json`](.kiro/hooks/verify-fixtures-on-detector-change.json)
 - `verify-fixtures-on-detector-change`: on saving anything under `src/detectors/` or `src/mutation/`, re-run fixture verification. A detector edit that stops catching a planted defect is exactly the regression this project exists to prevent, so it is caught at save time rather than in review.
 - `spec-traceability-reminder`: on saving a detector, an agent action checks the file against `requirements.md` and flags emitting behaviour that no acceptance criterion covers.
+- `prove-new-tests-are-earned`: on saving a TypeScript or JavaScript test, build and run `canfail prove` against `HEAD`; a generated test that also passes against the old code is reported immediately instead of waiting for CI.
 
 **What Kiro was not used for.** The four detector heuristics and the mutation catalogue were designed by hand, because they encode judgement about which patterns are false positives. Kiro wrote the spec set, the steering docs, and drove the implementation against them.
 
@@ -277,13 +316,13 @@ Stated plainly, because a tool about honest verification should be honest about 
 - All four detectors run against `fixtures/greenwashed-app` and produce the 13 findings above, matched one-for-one against the manifest.
 - The mutation probe genuinely mutates files on disk and re-runs vitest as a subprocess: 7 mutants, 2 killed, 5 survived on the fixture.
 - Working-tree restoration after a full probe is verified byte-for-byte with checksums.
-- 59 tests: unit tests for every detector subtype, the mutant generator, the file guard, the import graph, and the test-runner bridge, plus 12 CLI integration tests that run the built binary as a subprocess and assert its exit codes.
+- 78 tests: unit tests for every detector subtype, the mutant generator, the file guard, the import graph, the test-runner bridge, multi-language detection, and the prove loop, plus 31 integration tests covering the built CLI, real git repositories, a real Go module, and SIGKILL recovery.
 
 **Known limits:**
-- TypeScript and JavaScript only.
+- Static scan and mutation probe are TypeScript and JavaScript only. `canfail prove` (UNEARNED) works across its built-in language families, but the AST detectors (VACUOUS, MOCK, SILENT) and the SURVIVED mutation probe require a TypeScript/JavaScript codebase.
 - The probe budget is per test file (`--max-mutants`, default 12), so a full run is a sample of the mutation space, not an exhaustive one. Surviving mutants are proof of a gap; the absence of them is not proof of coverage.
 - Import resolution is file-based: it follows relative imports and does not resolve `tsconfig` path aliases or bare package specifiers. A project that reaches its UI exclusively through an alias will under-report `MOCK`.
-- The `MOCK` detector is heuristic on naming (`MOCK_`, `demoUser`, …). A placeholder named `realProductData` will not be flagged.
+- The `MOCK` detector is heuristic on naming (`MOCK_`, `demoUser`, ...). A placeholder named `realProductData` will not be flagged.
 - `SILENT` detects the syntactic shapes above, not semantic swallowing in general.
 - Only the first mutant per source line is attempted, to spread the budget across lines rather than concentrating it.
 

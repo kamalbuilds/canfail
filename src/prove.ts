@@ -9,6 +9,14 @@
  *
  * canfail prove reverts the changed source files to their base revision, runs the
  * changed test files against that old code, and requires them to go red.
+ *
+ * Requirements: .kiro/specs/unearned-tests/requirements.md
+ *   1.1-1.5  Detecting changed tests that never could have caught the change
+ *   2.1-2.4  Unconditional working-tree restoration (RevertGuard)
+ *   3.1-3.4  Handling source files that did not exist at the base revision
+ *   4.1-4.4  Skipping tests whose import closure has no changed source
+ *   5.1-5.5  Refusing to run outside a git repository or with an unresolvable base ref
+ *   6.1-6.6  Multi-language support (delegated to ./lang.ts)
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, renameSync, rmSync, writeFileSync, readFileSync } from "node:fs";

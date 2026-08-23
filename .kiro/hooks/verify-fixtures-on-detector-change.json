@@ -20,6 +20,16 @@
         "type": "agent",
         "prompt": "The file just saved is a canfail detector. Read .kiro/specs/vacuity-detection/requirements.md. Confirm the file's header comment cites the acceptance criteria it implements, and that every branch that emits a Finding traces to one. If a behaviour has no requirement, say which requirement should be added and stop. Do not edit the file."
       }
+    },
+    {
+      "name": "prove-new-tests-are-earned",
+      "description": "Catches AI-generated or hand-written tests that would have passed against the code before this change - the exact gap canfail prove exists to close. After a test or spec file is saved, builds the project and runs prove against HEAD to verify the new test would have failed on the previous commit. If it passes against old code, it is UNEARNED and the hook reports it immediately at save time rather than waiting for CI.",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(test|spec)\\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$",
+      "action": {
+        "type": "command",
+        "command": "npm run build --silent && node dist/bin/canfail.js prove . --base HEAD --test-command \"npx vitest run\""
+      }
     }
   ]
 }

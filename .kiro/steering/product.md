@@ -2,36 +2,51 @@
 
 ## What It Is
 
-`canfail` is a CLI tool and CI gate for TypeScript and JavaScript repositories that answers one question: **can this test actually fail?**
+`canfail` is a CLI tool and CI gate that answers one question: **can this test actually fail?**
 
-AI coding agents and automated test generators routinely produce test suites that are permanently green — not because the code under test is correct, but because the tests cannot exercise a failure path. This is vacuous coverage: the tests run, they pass, they report 100% coverage, and they catch nothing.
+AI coding agents routinely produce test suites that are permanently green - not because the code is correct, but because the tests cannot exercise a failure path. `canfail` finds those tests before they reach production. It runs locally and in CI. It exits non-zero when it finds checks that cannot fail, blocking merges automatically.
 
-`canfail` finds those tests before they reach production. It runs locally and in CI. It exits non-zero when it finds checks that cannot fail, blocking merges automatically.
+## The Five Problems It Solves
 
-## The Four Problems It Solves
+**Vacuous tests** - test bodies with no reachable assertion, tautological assertions like `assert(true)`, empty catch blocks that swallow failures, skipped tests left in the suite, and snapshot-only tests with no baseline.
 
-**Vacuous tests** — test bodies with no reachable assertion, tautological assertions like `assert(true)`, empty catch blocks that swallow failures, skipped tests left in the suite, and snapshot-only tests with no baseline.
+**Unkillable logic** - tests that are structurally correct but that a simple one-line change to the source would not break. `canfail` applies deterministic mutations (operator swaps, boolean flips, return sentinels, conditional negations) and re-runs the affected test. If the suite stays green, the test cannot fail.
 
-**Unkillable logic** — tests that are structurally correct but that a simple one-line change to the source would not break. `canfail` applies deterministic mutations to source symbols (operator swaps, boolean flips, return sentinels, conditional negations) and re-runs the affected test. If the suite stays green, the test cannot fail.
+**Mock contamination** - mock, demo, or fixture identifiers (`MOCK_*`, `DEMO_*`, `FAKE_*`) and hardcoded sample data reachable from production entry points via the import graph.
 
-**Mock contamination** — mock, demo, or fixture identifiers (`MOCK_*`, `DEMO_*`, `FAKE_*`) and hardcoded sample data reachable from production entry points via the import graph. These are data that belong in test fixtures but have leaked into production code paths.
+**Silent error handlers** - catch blocks that return HTTP 200, `{ ok: true }`, or empty success responses unconditionally, including health-check routes that report healthy when they are not.
 
-**Silent error handlers** — catch blocks that return HTTP 200, `{ ok: true }`, or empty success responses unconditionally, including health-check routes that report healthy when they are not.
+**Unearned tests** - a test added alongside a change that passes against the base revision of the code it claims to cover. `canfail prove` reverts source files to a base commit, re-runs the changed tests against that old code, and requires red. A test that passes both before and after documents the implementation instead of pinning behaviour.
+
+## Multi-Language Scope
+
+The static AST detectors (VACUOUS, MOCK, SILENT) and the mutation probe (SURVIVED) are TypeScript and JavaScript only.
+
+`canfail prove` (UNEARNED) has a language-agnostic core and built-in recognition for TypeScript, JavaScript, Go, Python, Ruby, Java, and Rust integration tests. It requires git history, a recognised test-file pattern, and a command that exits non-zero on failure. Rust unit tests remain unsupported because they conventionally live inside the source file that must be reverted.
+
+TypeScript/JavaScript and Go are verified end-to-end in CI on every push via `demo-prove.sh` and `demo-prove-go.sh`. Python, Ruby, and Java are pattern-supported and unit-tested but not exercised in CI.
+
+## Crash-Safe Mutation
+
+The mutation probe writes to disk. SIGKILL, a power cut, or a parent killing canfail mid-probe cannot be trapped. Two mechanisms ensure correctness:
+
+1. **Crash journal.** Before any file is mutated, its original bytes are copied to `.canfail-backup/` and recorded in `.canfail-journal.json` at the project root. The next `canfail` run reads the journal first and repairs the tree before scanning.
+
+2. **Commit guard.** `scripts/no-mutants-committed.sh` rejects any commit containing a mutation sentinel (`__canfail_sentinel__`). It runs in CI before all other steps.
+
+In-process, `FileGuard` and `guardProcess` handle SIGINT, SIGTERM, and uncaughtException. A post-probe `verifyClean()` check refuses to exit cleanly if any file does not match its snapshot. The journal is only deleted after verification passes.
 
 ## Who It Is For
 
-**Individual developers** who want to know whether their tests are worth anything before committing.
-
-**Tech leads and reviewers** who want a machine-readable gate to enforce in CI without reading every test file manually.
-
-**AI-assisted teams** whose test suites are generated by coding agents and need an independent check that the generated tests have real discriminating power.
-
-**Maintainers of libraries and SDKs** who need high confidence that their test suite would actually detect a regression before shipping a release.
+- **Individual developers** who want to know whether their tests are worth anything before committing.
+- **Tech leads and reviewers** who want a machine-readable gate in CI without reading every test file.
+- **AI-assisted teams** whose test suites are generated by coding agents and need an independent check that the generated tests have discriminating power.
+- **Maintainers of libraries** who need confidence that their suite would detect a regression before shipping.
 
 ## What It Is Not
 
-`canfail` does not fix tests. It reports. It does not make network calls. It does not integrate with paid services. It does not require a cloud account, a license key, or an internet connection. It is a local, offline, deterministic tool.
+`canfail` does not fix tests. It reports. It does not make network calls. It does not integrate with paid services. It does not require an internet connection. It is a local, offline, deterministic tool.
 
 ## Self-Verification
 
-`canfail` ships with a `fixtures/greenwashed-app` directory containing one deliberately planted defect for each detector kind. Running `canfail verify-fixtures` against this fixture proves the tool itself can find the problems it claims to find. This is the tool's own proof of correctness.
+`canfail` ships with `fixtures/greenwashed-app` containing planted defects for each detector kind, matched one-for-one against `canfail-manifest.json`. Running `canfail verify-fixtures` proves the tool finds the problems it claims to find - and reports nothing else. A weakened detector turns CI red.

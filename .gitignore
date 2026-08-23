@@ -7,3 +7,10 @@ dist/
 .canfail-journal.json
 .canfail-backup/
 *.canfail-hidden
+
+# Local Kiro session memory - never commit
+.kiro-memory/
+
+# Local editor and traffic-capture artifacts - never commit
+.kiro/settings/
+mitm_mcp_traffic.db

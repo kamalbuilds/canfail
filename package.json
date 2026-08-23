@@ -6,7 +6,6 @@
   "bin": {
     "canfail": "dist/bin/canfail.js"
   },
-  "main": "dist/src/index.js",
   "files": [
     "dist",
     "README.md",
@@ -21,9 +20,10 @@
     "pretest": "npm run build",
     "test": "vitest run",
     "demo:clean": "npm run build && node dist/bin/canfail.js scan fixtures/clean-app",
+    "demo:kirocrew": "npm run build && ./scripts/demo-prove-kirocrew.sh",
     "demo": "npm run build && node dist/bin/canfail.js scan fixtures/greenwashed-app",
     "verify:fixtures": "npm run build && node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app",
-    "selfcheck": "npm run build && node dist/bin/canfail.js scan . --no-mutate"
+    "selfcheck": "npm run build && node dist/bin/canfail.js scan . --exclude fixtures --no-mutate"
   },
   "keywords": [
     "testing",
@@ -43,5 +43,19 @@
     "@types/node": "^22.7.4",
     "typescript": "^5.6.2",
     "vitest": "^2.1.1"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kamalbuilds/canfail.git"
+  },
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/kamalbuilds/canfail/issues"
+  },
+  "homepage": "https://github.com/kamalbuilds/canfail#readme"
 }

@@ -1,6 +1,6 @@
 /**
  * SURVIVED detector — the probe that separates a real check from a green light.
- * Requirements 3.1 - 3.7.
+ * Requirements 3.1 - 3.6.
  *
  * For each test file: break something the test imports, re-run only that test file,
  * and see whether the suite notices. Still green means the check cannot fail.
@@ -19,7 +19,7 @@ import { runTestFile, type RunnerOptions } from "./runner.js";
 export interface ProbeOptions extends RunnerOptions {
   root: string;
   files: string[];
-  /** Hard cap on mutants per test file, keeps CI time bounded. Requirement 3.7. */
+  /** Hard cap on mutants per test file, a post-spec safety bound that keeps CI time bounded. */
   maxMutantsPerTest: number;
   onProgress?: (msg: string) => void;
   /** Recorded in the crash journal so a stale one can be dated. */

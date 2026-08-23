@@ -1,10 +1,27 @@
 /**
  * Language detection for `canfail prove`.
  *
- * The UNEARNED invariant — a new test must fail against the base revision — needs
- * only three things: git history, a way to recognise a test file, and a command
- * that exits non-zero when tests fail. None of that is TypeScript-specific, so
- * prove works in any language whose tests live in their own files.
+ * Requirements: .kiro/specs/unearned-tests/requirements.md 6.1-6.6
+ *   6.1  Test-file classification patterns per language
+ *   6.2  Import-closure scoping (TS/JS) vs same-language scoping (all others)
+ *   6.3  {file} / {dir} placeholder substitution in --test-command
+ *   6.4  Rust inline-test detection and skip
+ *   6.5  Unknown-extension handling (no classify, no revert, no run)
+ *   6.6  Go test command with {dir} package-path substitution
+ *
+ * Built-in recognized language families:
+ *   - TypeScript  (.ts, .tsx, .mts, .cts)
+ *   - JavaScript  (.js, .jsx, .mjs, .cjs)
+ *   - Go          (.go)
+ *   - Python      (.py)
+ *   - Rust        (.rs)
+ *   - Ruby        (.rb)
+ *   - Java        (.java)
+ *
+ * Files whose extension does not match one of the above are classified as
+ * "unknown" and are never treated as test files or revert targets. No other
+ * languages are inferred or guessed. An explicit --test-command controls how
+ * a recognised test runs; adding another language requires another LanguageSpec.
  *
  * The AST detectors (VACUOUS, MOCK, SILENT) and the mutation probe are TypeScript
  * and JavaScript only, and are not covered by this module.
