@@ -79,9 +79,18 @@ npm run build
 # The demo. A fully green test suite with 13 planted defects.
 npm run demo
 
+# The negative case: a small module whose tests genuinely constrain it.
+# Every mutant is killed, zero findings, exit 0.
+npm run demo:clean
+
+# The full test suite: 59 tests, including CLI integration tests
+npm test
+
 # The gate on your own project
 node dist/bin/canfail.js scan /path/to/your/project --no-mutate
 ```
+
+`fixtures/clean-app` matters as much as the broken one. A tool that reports findings everywhere is as useless as one that reports none; the clean fixture is the check that stops canfail from becoming a finding generator, and it runs in CI on every push.
 
 ### Verify the tool itself
 
@@ -241,7 +250,7 @@ Stated plainly, because a tool about honest verification should be honest about 
 - All four detectors run against `fixtures/greenwashed-app` and produce the 13 findings above, matched one-for-one against the manifest.
 - The mutation probe genuinely mutates files on disk and re-runs vitest as a subprocess: 7 mutants, 2 killed, 5 survived on the fixture.
 - Working-tree restoration after a full probe is verified byte-for-byte with checksums.
-- 28 unit tests covering every detector subtype, the mutant generator, and the file guard.
+- 59 tests: unit tests for every detector subtype, the mutant generator, the file guard, the import graph, and the test-runner bridge, plus 12 CLI integration tests that run the built binary as a subprocess and assert its exit codes.
 
 **Known limits:**
 - TypeScript and JavaScript only.

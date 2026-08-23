@@ -24,6 +24,10 @@ jobs:
       - name: fixture verification
         run: node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app
 
+      # The negative case: a genuinely tested module must produce zero findings.
+      - name: clean fixture reports nothing
+        run: node dist/bin/canfail.js scan fixtures/clean-app
+
       # And the gate above must itself be capable of failing.
       - name: prove the gate can fail
         run: ./scripts/prove-gate-can-fail.sh

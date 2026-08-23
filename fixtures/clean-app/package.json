@@ -1,0 +1,11 @@
+{
+  "name": "clean-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A small module whose tests genuinely constrain its behaviour. canfail must report zero findings here: the negative case that stops the tool from being a finding generator.",
+  "main": "src/pricing.ts",
+  "scripts": {
+    "test": "vitest run"
+  }
+}
