@@ -13,8 +13,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, renameSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { isTestFile } from "./ast/index.js";
 import { buildImportGraph, listSourceFiles, reachableFrom } from "./graph/importer.js";
+import { detectLanguage, hasInlineTests, isTestFileAnyLanguage, scopeStrategy } from "./lang.js";
 import { runTestFile, type RunnerOptions } from "./mutation/runner.js";
 import type { Finding } from "./types.js";
 import { findingId } from "./types.js";
@@ -111,8 +111,8 @@ export function prove(opts: ProveOptions): ProveOutcome {
   if (!baseSha) throw new Error(`cannot resolve base revision "${base}"`);
 
   const changed = changedFiles(root, base);
-  const changedTests = changed.filter(isTestFile);
-  const changedSources = changed.filter((f) => !isTestFile(f));
+  const changedTests = changed.filter(isTestFileAnyLanguage);
+  const changedSources = changed.filter((f) => !isTestFileAnyLanguage(f));
 
   const findings: Finding[] = [];
   const earned: string[] = [];
@@ -122,19 +122,37 @@ export function prove(opts: ProveOptions): ProveOutcome {
     return { findings, earned, skipped, base: baseSha };
   }
 
-  const graph = buildImportGraph(root, listSourceFiles(root));
+  // The import graph is only built when a TypeScript or JavaScript test needs it.
+  let graph: ReturnType<typeof buildImportGraph> | undefined;
   const guard = new RevertGuard();
 
   try {
     for (const testFile of changedTests) {
       const rel = relative(root, testFile);
-      const closure = reachableFrom(graph, testFile);
-      const toRevert = changedSources.filter((s) => closure.has(s));
+      const lang = detectLanguage(testFile);
+
+      let toRevert: string[];
+      if (scopeStrategy(testFile) === "import-closure") {
+        graph ??= buildImportGraph(root, listSourceFiles(root));
+        const closure = reachableFrom(graph, testFile);
+        toRevert = changedSources.filter((s) => closure.has(s));
+      } else {
+        // No import resolution for this language: revert the whole changed surface
+        // of the same language, which is the stricter reading of the invariant.
+        toRevert = changedSources.filter((s) => detectLanguage(s) === lang && !hasInlineTests(s));
+      }
+
+      const inlineBlocked = changedSources.filter((s) => detectLanguage(s) === lang && hasInlineTests(s));
 
       if (toRevert.length === 0) {
         skipped.push({
           file: rel,
-          reason: "no changed source in this test's import closure, so there is nothing for it to have proved",
+          reason:
+            inlineBlocked.length > 0
+              ? `changed ${lang} sources keep their tests inside the source file, so reverting would delete the test being checked`
+              : scopeStrategy(testFile) === "import-closure"
+                ? "no changed source in this test's import closure, so there is nothing for it to have proved"
+                : `no changed ${lang} source alongside this test, so there is nothing for it to have proved`,
         });
         continue;
       }

@@ -37,6 +37,10 @@ jobs:
       - name: prove demo
         run: ./scripts/demo-prove.sh
 
+      # Same invariant, a real Go module, no TypeScript involved.
+      - name: prove demo (Go)
+        run: ./scripts/demo-prove-go.sh
+
       # Self-hosting gate: canfail's own tests may not be vacuous.
       - name: canfail scans canfail
         run: node dist/bin/canfail.js scan . --exclude fixtures --no-mutate

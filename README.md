@@ -103,6 +103,51 @@ Every CI in the world accepts both. Only one of them would have caught the bug.
 
 Source files are reverted with `git show`, and a file that did not exist at the base revision is moved aside rather than deleted, so an interrupted run never destroys new work. The working tree is restored on every path and verified afterwards.
 
+### prove is not TypeScript-specific
+
+The invariant needs three things: git history, a way to recognise a test file, and a command that exits non-zero when tests fail. None of that is tied to a language. The same binary checks a Go module:
+
+```bash
+./scripts/demo-prove-go.sh
+```
+
+```
+Test A: TestDiscountOnLargeBasket        assert DiscountFor(500) == 10
+  UNEARNED discount_test.go
+           passes against HEAD with discount.go reverted
+  exit 1
+
+Test B: TestDiscountAtThreshold          assert DiscountFor(100) == 10
+  EARNED   discount_test.go
+           failed against HEAD, as a new test should
+  exit 0
+```
+
+Commands that need a package path rather than a file get `{dir}`; commands that need the file get `{file}`:
+
+```bash
+canfail prove --base main --test-command "go test ./{dir}"
+canfail prove --base main --test-command "python -m pytest {file}"
+canfail prove --base main --test-command "npx vitest run"        # path appended
+```
+
+**Support matrix — "verified" means exercised in CI on every push, not asserted:**
+
+| | `prove` (UNEARNED) | `scan` (VACUOUS / SURVIVED / MOCK / SILENT) |
+|---|---|---|
+| TypeScript, JavaScript | **verified** — import-closure scoped | **verified** |
+| Go | **verified** — real `go test` module in CI | not supported |
+| Python (`test_*.py`, `*_test.py`) | pattern supported, **not verified** | not supported |
+| Ruby (`*_spec.rb`, `*_test.rb`), Java (`*Test.java`) | pattern supported, **not verified** | not supported |
+| Rust | `tests/*.rs` only — see below | not supported |
+
+Two honest limits:
+
+- **Rust unit tests cannot be checked.** Idiomatic Rust puts them in `#[cfg(test)] mod tests` inside the source file. Reverting that file to its base revision deletes the test being evaluated, so canfail detects this and skips with that reason printed rather than reporting a misleading pass. Integration tests under `tests/` work normally.
+- **Only TypeScript and JavaScript get import-closure scoping.** Every other language reverts the whole changed surface of the same language, which is the stricter reading of the invariant — the test must fail against the change as a whole. Python, Ruby and Java are pattern-supported and have unit-tested detection, but no end-to-end run in CI, so they are listed as unverified.
+
+The AST detectors do not port tonight. Writing a Go or Python parser for `VACUOUS` / `MOCK` / `SILENT` is real work and claiming it without a fixture would be exactly the defect this tool exists to catch.
+
 ## Quickstart
 
 Requires Node 20+. No API keys, no network calls, no accounts. `canfail` never makes an outbound request.

@@ -4,7 +4,7 @@
  * Requirements 3.3, 3.6.
  */
 import { spawnSync } from "node:child_process";
-import { relative } from "node:path";
+import { dirname, relative } from "node:path";
 
 export type RunOutcome = "green" | "red" | "timeout" | "error";
 
@@ -30,6 +30,14 @@ export interface RunnerOptions {
  */
 export function buildCommand(testFile: string, opts: Pick<RunnerOptions, "cwd" | "testCommand">): string {
   const rel = relative(opts.cwd, testFile) || testFile;
+  const dir = dirname(rel) || ".";
+
+  // Not every runner takes a file. `go test` wants a package directory, so a
+  // command may place the path itself with {file} or {dir}; only commands that
+  // use neither get the path appended.
+  if (/\{file\}|\{dir\}/.test(opts.testCommand)) {
+    return opts.testCommand.replaceAll("{file}", rel).replaceAll("{dir}", dir);
+  }
   return `${opts.testCommand} ${JSON.stringify(rel)}`;
 }
 
