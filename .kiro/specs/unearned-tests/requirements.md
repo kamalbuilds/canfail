@@ -112,3 +112,24 @@ This spec was written **after** the implementation, during a prior-art review on
 | **skipped** | A changed test excluded from checking because its import closure contains no changed source. |
 | **RevertGuard** | The internal class responsible for reverting files and restoring them unconditionally. |
 | `.canfail-hidden` | The suffix appended to files that did not exist at the base revision when they are moved aside. |
+
+---
+
+### User Story 6: Checking the invariant in languages other than TypeScript
+
+**User Story:** As a developer working in Go, Python, Rust, Ruby, or Java, I want `canfail prove` to recognise my test files, revert the correct source surface, and invoke my test command with the right path substitution, so that the UNEARNED invariant applies to my project without manual configuration.
+
+**Acceptance Criteria:**
+
+6.1 WHERE a file path ends in `_test.go`, the system SHALL classify it as a Go test file; WHERE a file path matches `test_*.py` or `*_test.py`, the system SHALL classify it as a Python test file; WHERE a file path matches `tests/*.rs` (a `.rs` file directly under a `tests/` directory), the system SHALL classify it as a Rust test file; WHERE a file path ends in `_spec.rb` or `_test.rb`, the system SHALL classify it as a Ruby test file; WHERE a file path ends in `Test.java` (with any prefix), the system SHALL classify it as a Java test file.
+
+6.2 WHEN the test file is TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`) or JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`), THEN the system SHALL use import-closure scoping, reverting only changed source files that are transitively reachable from the test's import graph; WHEN the test file belongs to any other supported language (Go, Python, Rust, Ruby, Java), THEN the system SHALL revert the entire changed source surface of the same language.
+
+6.3 WHEN the configured `--test-command` string contains the placeholder `{file}` or `{dir}`, THEN the system SHALL substitute `{file}` with the test file path relative to the working directory and `{dir}` with the directory containing that relative path, and SHALL NOT append the path again; WHEN the command contains neither placeholder, THEN the system SHALL append the JSON-quoted relative path to the end of the command string.
+
+6.4 WHEN a Rust source file (`.rs`) is not under a `tests/` directory and therefore contains inline `#[cfg(test)]` unit tests, THEN the system SHALL skip that file from reversion with the reason reported as `"changed rust sources keep their tests inside the source file, so reverting would delete the test being checked"`, and SHALL never silently treat it as a passed result.
+
+6.5 WHERE a file's extension does not match any supported language (TypeScript, JavaScript, Go, Python, Rust, Ruby, Java), THEN the system SHALL assign it the language `"unknown"`, SHALL NOT classify it as a test file, and SHALL NOT attempt to revert or run it.
+
+6.6 WHEN a Go test file is evaluated by `canfail prove` with the default Go test command `"go test ./{dir}"`, THEN the system SHALL substitute `{dir}` with the directory of the test file relative to the project root and SHALL run `go test ./<dir>`, ensuring the test is invoked as a Go package rather than a file path.
+

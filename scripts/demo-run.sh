@@ -28,6 +28,10 @@ beat "4. And the check no CI runs: a new test must fail against the code it pred
 ./scripts/demo-prove.sh
 pause
 
+beat "4b. Same invariant, a Go module. No TypeScript involved except the checker."
+./scripts/demo-prove-go.sh
+pause
+
 beat "5. A scanner that prints zero is indistinguishable from a broken scanner."
 run node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app --no-mutate
 pause

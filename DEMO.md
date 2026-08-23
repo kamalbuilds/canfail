@@ -42,6 +42,14 @@ Record the terminal at a readable font size. Say the words below in your own voi
 
 *(beat 4)*
 
+**Optional 15s — same invariant, a Go module** *(include it; one judge builds mostly in Go, Rust and C++)*
+
+> None of this is TypeScript-specific. It needs git, a test-file convention, and a command that exits non-zero. Here is the identical check on a Go module, same off-by-one, same two tests.
+>
+> The AST detectors are TypeScript only, and the README says so rather than implying otherwise.
+
+*(beat 4b)*
+
 **2:05 – 2:30 — proving the tool itself**
 
 > A scanner that prints "zero problems" is indistinguishable from a scanner that is broken. So the fixture ships a manifest of every defect planted in it, and canfail has to find all of them and report nothing else.

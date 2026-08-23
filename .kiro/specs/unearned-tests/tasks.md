@@ -64,3 +64,21 @@
 
 - [x] 20. **Implement `cleanHidden(root)`** — a utility exported from `src/prove.ts` that scans source files for any path ending in `.canfail-hidden` and deletes them; used to recover from interrupted runs.
   _Requirements: 2.3, 3.4_
+
+- [x] 21. **Implement multi-language test-file detection in `src/lang.ts`** — define a `LanguageSpec` record for each supported language (TypeScript, JavaScript, Go, Python, Rust, Ruby, Java) with `ext`, `test`, `testCommand`, and optional `inlineTests` regex; export `detectLanguage`, `isTestFileAnyLanguage`, `conventionalTestCommand`, and `hasInlineTests` functions that match file paths against these specs; classify unmatched files as `"unknown"`.
+  _Requirements: 6.1, 6.5_
+
+- [x] 22. **Implement `scopeStrategy` and same-language revert logic in `src/prove.ts`** — export a `scopeStrategy(testFile)` function that returns `"import-closure"` for TypeScript and JavaScript and `"same-language"` for all other supported languages; in `prove()`, when the strategy is `"same-language"`, filter `changedSources` to the same detected language (excluding files with inline tests) and revert that entire set rather than building an import graph.
+  _Requirements: 6.2, 6.4_
+
+- [x] 23. **Implement `{file}` and `{dir}` placeholder substitution in `buildCommand`** — in `src/mutation/runner.ts`, detect whether `testCommand` contains `{file}` or `{dir}`; if so, replace all occurrences of `{file}` with the relative test path and `{dir}` with `dirname(rel) || "."` and return the result; otherwise append the JSON-quoted relative path to the command string.
+  _Requirements: 6.3, 6.6_
+
+- [x] 24. **Write end-to-end integration test: Go module with `canfail prove`** — build a throwaway git repo containing a Go module with an off-by-one bug at base, apply a fix, write two Go tests (`_test.go`): one UNEARNED (passes against base) and one EARNED (fails against base); run `prove()` with `testCommand: "go test ./{dir}"`; assert the UNEARNED test produces a finding and the EARNED test appears in `earned`; verify `{dir}` was correctly substituted and no import graph was built.
+  _Requirements: 6.1, 6.2, 6.3, 6.6_
+
+- [x] 25. **Write unit tests for `hasInlineTests` Rust detection** — assert that `.rs` files under `tests/` are not blocked, that `.rs` files outside `tests/` are reported as having inline tests, and that the prove loop skips them with the reason string containing `"tests inside the source file"`.
+  _Requirements: 6.4_
+
+- [x] 26. **Write unit tests for `detectLanguage` and `isTestFileAnyLanguage` across all supported languages** — assert correct classification for `foo_test.go`, `test_bar.py`, `bar_test.py`, `tests/integration.rs`, `user_spec.rb`, `user_test.rb`, `UserTest.java`, and assert `"unknown"` for unsupported extensions like `.c`, `.swift`, `.zig`.
+  _Requirements: 6.1, 6.5_
