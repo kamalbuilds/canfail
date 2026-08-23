@@ -1,0 +1,45 @@
+{
+  "name": "canfail",
+  "version": "0.1.0",
+  "description": "Prove your tests can actually fail. Finds checks that are green because they cannot go red.",
+  "type": "module",
+  "bin": {
+    "canfail": "dist/bin/canfail.js"
+  },
+  "main": "dist/src/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "canfail": "node dist/bin/canfail.js",
+    "test": "vitest run",
+    "demo": "npm run build && node dist/bin/canfail.js scan fixtures/greenwashed-app",
+    "verify:fixtures": "npm run build && node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app",
+    "selfcheck": "npm run build && node dist/bin/canfail.js scan . --no-mutate"
+  },
+  "keywords": [
+    "testing",
+    "mutation-testing",
+    "ci",
+    "static-analysis",
+    "vacuous-tests",
+    "ai-generated-code",
+    "kiro"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "ts-morph": "^23.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  }
+}

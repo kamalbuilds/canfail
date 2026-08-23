@@ -1,0 +1,11 @@
+{
+  "name": "greenwashed-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A food-safety scanner whose test suite is fully green and proves almost nothing. Planted defects are catalogued in canfail-manifest.json.",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  }
+}
