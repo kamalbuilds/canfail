@@ -209,7 +209,16 @@ For each test file, in order:
 4. For each mutant: snapshot the file, apply the mutation to disk, re-run **only that test file**, restore the file unconditionally.
 5. Exit code `0` from the test run means the mutant survived: nothing in the suite depended on that line being correct.
 
-**Restoration is a hard invariant.** Files are restored on success, on failure, on timeout, and on `SIGINT`. After the loop, `canfail` re-reads every touched file and compares it against the snapshot; if a single byte differs it aborts with exit code `2` rather than leaving mutated source on disk. Verified on every run in this repo: the working tree is byte-identical before and after.
+**Restoration is a hard invariant, and it has one hole that no in-process code can close.** Files are restored on success, on failure, on timeout, on `SIGINT` and on `SIGTERM`. After the loop, `canfail` re-reads every touched file against its snapshot and aborts with exit code `2` rather than leave mutated source on disk.
+
+`SIGKILL` cannot be trapped. **This bit this repo.** While generating the README images, the screen-capture tool hit its own timeout and SIGKILLed canfail mid-probe. No handler ran, `fixtures/greenwashed-app/src/scoring.ts` was left with `containsAllergen` returning `"__canfail_sentinel__"`, and it went into a commit. It surfaced three commits later as a CI failure that looked like something else entirely — a green-looking local run, a broken artifact, exactly the defect class this tool is named after.
+
+Two fixes, both in the repo:
+
+1. **A crash journal.** Before a file is mutated, its original bytes are copied to `.canfail-backup/` and recorded in `.canfail-journal.json`. Every subsequent run reads the journal *before anything else* and repairs the tree, then reports what it repaired. If a backup is missing it says so and keeps the journal rather than claiming success. `tests/integration/crash-recovery.test.ts` spawns a real probe, **SIGKILLs it**, asserts the tree is genuinely dirty, and requires the next run to restore it byte-for-byte.
+2. **A commit guard.** [`scripts/no-mutants-committed.sh`](scripts/no-mutants-committed.sh) fails when a mutation artifact is tracked by git. It runs first in CI. Re-staging the original mutant makes it exit 1; removing it makes it exit 0.
+
+The honest version of the invariant: canfail cannot guarantee it is never killed mid-mutation, so it guarantees the damage is recorded, repaired on the next run, and blocked at the commit.
 
 A timeout counts as a **killed** mutant, not a survivor. A hung test is evidence the mutation had an effect, and the conservative direction is to under-report.
 

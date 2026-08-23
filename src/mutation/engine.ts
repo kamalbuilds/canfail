@@ -13,6 +13,7 @@ import type { Finding, MutantDescriptor } from "../types.js";
 import { findingId } from "../types.js";
 import { applyMutation, collectMutationTargets, type MutationTarget } from "./mutants.js";
 import { FileGuard, guardProcess } from "./restore.js";
+import { Journal } from "./journal.js";
 import { runTestFile, type RunnerOptions } from "./runner.js";
 
 export interface ProbeOptions extends RunnerOptions {
@@ -21,6 +22,8 @@ export interface ProbeOptions extends RunnerOptions {
   /** Hard cap on mutants per test file, keeps CI time bounded. Requirement 3.7. */
   maxMutantsPerTest: number;
   onProgress?: (msg: string) => void;
+  /** Recorded in the crash journal so a stale one can be dated. */
+  journalTimestamp?: string;
 }
 
 export interface ProbeStats {
@@ -51,7 +54,8 @@ export function probe(opts: ProbeOptions): ProbeResult {
   const { root, files, maxMutantsPerTest } = opts;
   const testFiles = files.filter((f) => isTestFile(f));
   const graph = buildImportGraph(root, files);
-  const guard = new FileGuard();
+  const journal = new Journal(root, opts.journalTimestamp ?? "unknown");
+  const guard = new FileGuard(journal);
   const dispose = guardProcess(guard);
 
   const findings: Finding[] = [];
@@ -144,9 +148,11 @@ export function probe(opts: ProbeOptions): ProbeResult {
     guard.restoreAll();
     if (!guard.verifyClean()) {
       // Requirement 3.5 is a hard invariant: refuse to exit quietly on a dirty tree.
+      // The journal is deliberately left behind so the next run can repair it.
       dispose();
       throw new Error("canfail could not restore a mutated source file; inspect your working tree before continuing");
     }
+    guard.releaseJournal();
     dispose();
   }
 

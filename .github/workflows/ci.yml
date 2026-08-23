@@ -16,6 +16,11 @@ jobs:
       - run: npm install
       - run: npm run build
 
+      # A SIGKILLed probe once left a mutant in a committed fixture. This is the
+      # check that would have caught it at the commit that introduced it.
+      - name: no mutation artifacts committed
+        run: ./scripts/no-mutants-committed.sh
+
       - name: unit tests
         run: npx vitest run
 

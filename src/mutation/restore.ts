@@ -7,6 +7,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 export class FileGuard {
   private readonly snapshots = new Map<string, string>();
 
+  /**
+   * Optional on-disk journal. In-process state cannot survive SIGKILL, so the
+   * journal is what makes a killed run recoverable by the next one.
+   */
+  constructor(private readonly journal?: { protect(file: string): void; clear(): void }) {}
+
   snapshot(file: string): string {
     if (!this.snapshots.has(file)) {
       this.snapshots.set(file, readFileSync(file, "utf8"));
@@ -16,6 +22,7 @@ export class FileGuard {
 
   write(file: string, content: string): void {
     this.snapshot(file);
+    this.journal?.protect(file); // must happen before the file changes
     writeFileSync(file, content, "utf8");
   }
 
@@ -35,6 +42,11 @@ export class FileGuard {
       if (readFileSync(file, "utf8") !== original) return false;
     }
     return true;
+  }
+
+  /** Drop the journal once the tree is verified clean. */
+  releaseJournal(): void {
+    this.journal?.clear();
   }
 }
 

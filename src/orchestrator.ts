@@ -10,6 +10,7 @@ import { detectSilent } from "./detectors/silent.js";
 import { detectVacuous } from "./detectors/vacuous.js";
 import { listSourceFiles } from "./graph/importer.js";
 import { probe, type ProbeStats } from "./mutation/engine.js";
+import { recoverFromJournal } from "./mutation/journal.js";
 import { inferTestCommand } from "./mutation/runner.js";
 import type { CanfailReport, DetectorKind, Finding } from "./types.js";
 import { summarize } from "./types.js";
@@ -38,6 +39,16 @@ export interface ScanResult {
 export function scan(opts: ScanOptions): ScanResult {
   const root = opts.root;
   if (!existsSync(root)) throw new Error(`path not found: ${root}`);
+
+  // Repair anything a previously killed run left mutated, before reading a
+  // single file. Otherwise the scan analyses corrupted source and reports on it.
+  const recovery = recoverFromJournal(root);
+  for (const f of recovery.recovered) {
+    opts.onProgress?.(`recovered ${relative(root, f)} from an interrupted probe`);
+  }
+  for (const f of recovery.failed) {
+    opts.onProgress?.(`COULD NOT recover ${relative(root, f)}; check it by hand`);
+  }
 
   const excludes = opts.exclude ?? [];
   const files = listSourceFiles(root).filter((f) => {
@@ -90,6 +101,7 @@ export function scan(opts: ScanOptions): ScanResult {
       timeoutMs: opts.timeoutMs,
       maxMutantsPerTest: opts.maxMutantsPerTest,
       onProgress: opts.onProgress,
+      journalTimestamp: opts.now ?? new Date().toISOString(),
     });
     findings.push(...result.findings);
     probeStats = result.stats;
