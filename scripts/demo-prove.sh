@@ -41,7 +41,11 @@ test("gives the discount on a large basket", () => {
 EOF
 
 printf '\033[1mTest A: "gives the discount on a large basket" — it passes on the branch.\033[0m\n'
-node --test src/discount.test.js 2>&1 | tail -3
+if node --test src/discount.test.js >/dev/null 2>&1; then
+  printf '  \033[32mnode --test: PASS\033[0m\n'
+else
+  printf '  \033[31mnode --test: FAIL\033[0m\n'
+fi
 printf '\n\033[2m$ canfail prove --base HEAD\033[0m\n'
 node "$CLI" prove . --base HEAD --test-command "node --test" -q
 printf '\033[2m   exit %s\033[0m\n' "$?"
@@ -58,7 +62,11 @@ test("gives the discount exactly at the threshold", () => {
 EOF
 
 printf '\n\033[1mTest B: "gives the discount exactly at the threshold" — also passes on the branch.\033[0m\n'
-node --test src/discount.test.js 2>&1 | tail -3
+if node --test src/discount.test.js >/dev/null 2>&1; then
+  printf '  \033[32mnode --test: PASS\033[0m\n'
+else
+  printf '  \033[31mnode --test: FAIL\033[0m\n'
+fi
 printf '\n\033[2m$ canfail prove --base HEAD\033[0m\n'
 node "$CLI" prove . --base HEAD --test-command "node --test" -q
 printf '\033[2m   exit %s\033[0m\n\n' "$?"

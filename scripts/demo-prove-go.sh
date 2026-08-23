@@ -61,7 +61,11 @@ func TestDiscountOnLargeBasket(t *testing.T) {
 EOF
 
 printf '\n\033[1mTest A: TestDiscountOnLargeBasket\033[0m\n'
-go test ./. 2>&1 | tail -2
+if go test ./. >/dev/null 2>&1; then
+  printf '  \033[32mgo test: PASS\033[0m\n'
+else
+  printf '  \033[31mgo test: FAIL\033[0m\n'
+fi
 printf '\033[2m$ canfail prove --base HEAD --test-command "go test ./{dir}"\033[0m\n'
 node "$CLI" prove . --base HEAD --test-command "go test ./{dir}" -q
 printf '\033[2m   exit %s\033[0m\n' "$?"
@@ -79,7 +83,11 @@ func TestDiscountAtThreshold(t *testing.T) {
 EOF
 
 printf '\n\033[1mTest B: TestDiscountAtThreshold\033[0m\n'
-go test ./. 2>&1 | tail -2
+if go test ./. >/dev/null 2>&1; then
+  printf '  \033[32mgo test: PASS\033[0m\n'
+else
+  printf '  \033[31mgo test: FAIL\033[0m\n'
+fi
 printf '\033[2m$ canfail prove --base HEAD --test-command "go test ./{dir}"\033[0m\n'
 node "$CLI" prove . --base HEAD --test-command "go test ./{dir}" -q
 printf '\033[2m   exit %s\033[0m\n\n' "$?"

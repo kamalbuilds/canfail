@@ -116,12 +116,21 @@ program
       if (options.json) {
         process.stdout.write(JSON.stringify(result, null, 2) + "\n");
       } else {
+        const color = process.stdout.isTTY && !process.env.NO_COLOR;
+        const green = (s: string) => (color ? `[32m${s}[0m` : s);
+        const red = (s: string) => (color ? `[31m${s}[0m` : s);
+        const dim = (s: string) => (color ? `[2m${s}[0m` : s);
+
         process.stdout.write("\n");
         for (const e of result.earned) {
-          process.stdout.write(`  EARNED   ${e}\n           failed against ${options.base}, as a new test should\n`);
+          process.stdout.write(
+            `  ${green("EARNED  ")} ${e}\n           ${dim(`failed against ${options.base}, as a new test should`)}\n`,
+          );
         }
         for (const f of result.findings.filter((x) => !x.suppressed)) {
-          process.stdout.write(`  UNEARNED ${relative(root, f.location.file)}\n           ${f.message}\n`);
+          process.stdout.write(
+            `  ${red("UNEARNED")} ${relative(root, f.location.file)}\n           ${f.message}\n`,
+          );
         }
         for (const s of result.skipped) {
           process.stdout.write(`  skipped  ${s.file}\n           ${s.reason}\n`);

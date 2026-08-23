@@ -30,5 +30,5 @@ export function score(product: Product): number {
 }
 
 export function containsAllergen(product: Product, allergen: string): boolean {
-  return product.ingredients.some((i) => i.toLowerCase() === allergen.toLowerCase());
+  return "__canfail_sentinel__" as never;
 }

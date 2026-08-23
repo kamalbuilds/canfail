@@ -2,43 +2,21 @@
 
 **Your test suite is green. That is not the same as your tests being able to go red.**
 
-`canfail` is a CLI and CI gate for TypeScript and JavaScript projects that finds checks which cannot fail: tests that assert nothing, tests that swallow the failure they were written to catch, health endpoints that report success while the dependency underneath is down, and placeholder data sitting in a code path a real user can reach.
+`canfail` is a CLI and CI gate that finds checks which cannot fail: tests that assert nothing, tests that swallow the failure they were written to catch, health endpoints that report success while the dependency underneath is down, placeholder data sitting in a code path a real user can reach, and new tests that would have passed against the code they were written for.
+
+The static detectors are TypeScript and JavaScript. `canfail prove` works in **any language whose tests live in their own files** — verified against Go, and TypeScript, in CI on every push.
 
 It does not trust the green checkmark. For the tests that look real, it breaks the code they cover, re-runs them, and reports the ones that stayed green anyway.
 
+```bash
+canfail scan fixtures/greenwashed-app
 ```
-$ canfail scan fixtures/greenwashed-app
 
-src/api.test.ts
-  VACUOUS :26    catch block swallows the failure: test "responds to a product request" passes whether or not the code throws
-
-src/api.ts
-  SILENT  :20    HTTP 200 with an empty body: a throttled or failed upstream is indistinguishable from a healthy empty result
-
-src/health.ts
-  SILENT  :19    `healthCheck` catches the error and still returns `{ ok: true }`: the check cannot report a failure
-
-src/scoring.test.ts
-  VACUOUS :12    test "computes a score for a product" contains no assertion
-  VACUOUS :19    `expect(true).toBe(true)` is true regardless of the code under test
-  VACUOUS :32    `it.skip` never executes: "rejects a product at the unsafe threshold"
-
-src/scoring.ts
-  SURVIVED:20    `product.allergenPpm >= UNSAFE_PPM_THRESHOLD` → `!(product.allergenPpm >= UNSAFE_PPM_THRESHOLD)` and src/scoring.test.ts stayed green: nothing in the suite depends on this being correct
-
-src/ui/ResultScreen.ts
-  MOCK    :8     `MOCK_PRODUCT` (object literal) is reachable from a production entry point
-           reached via  src/index.ts  ->  src/ui/ResultScreen.ts
-  MOCK    :18    fake 800ms delay in front of placeholder data: the UI imitates a real request
-
-  13 checks that cannot fail
-    4 VACUOUS (test cannot go red)
-    5 SURVIVED (code was broken, test stayed green)
-    2 MOCK (placeholder data reachable in production)
-    2 SILENT (failure reported as success)
-```
+![canfail scanning the fixture app: 13 findings across four detectors, exit code 1](docs/img/scan.png)
 
 Exit code `1`. That fixture app has a **100% passing test suite**.
+
+> Every terminal image in this README is a real run captured by [`scripts/shots.sh`](scripts/shots.sh) with [freeze](https://github.com/charmbracelet/freeze). None are hand-edited or reconstructed, and each one shows its own exit code. Regenerate them yourself with `./scripts/shots.sh`.
 
 ---
 
@@ -82,22 +60,7 @@ That gap is exactly where AI-assisted development leaks: when the same session w
 
 The base commit has an off-by-one: `total > 100` where it should be `>= 100`. The fix is applied, and two different tests are written alongside it. **Both pass on the branch.**
 
-```
-Test A: "gives the discount on a large basket"       assert discountFor(500) === 10
-
-$ canfail prove --base HEAD
-  UNEARNED src/discount.test.js
-           passes against HEAD with src/discount.js reverted: this test would not
-           have failed before the change
-  exit 1
-
-Test B: "gives the discount exactly at the threshold"  assert discountFor(100) === 10
-
-$ canfail prove --base HEAD
-  EARNED   src/discount.test.js
-           failed against HEAD, as a new test should
-  exit 0
-```
+![canfail prove: test A passes against the base revision and exits 1, test B fails against it and exits 0](docs/img/prove.png)
 
 Every CI in the world accepts both. Only one of them would have caught the bug.
 
@@ -111,17 +74,7 @@ The invariant needs three things: git history, a way to recognise a test file, a
 ./scripts/demo-prove-go.sh
 ```
 
-```
-Test A: TestDiscountOnLargeBasket        assert DiscountFor(500) == 10
-  UNEARNED discount_test.go
-           passes against HEAD with discount.go reverted
-  exit 1
-
-Test B: TestDiscountAtThreshold          assert DiscountFor(100) == 10
-  EARNED   discount_test.go
-           failed against HEAD, as a new test should
-  exit 0
-```
+![canfail prove on a Go module: go test passes both times, but the first test exits 1 as UNEARNED and the second exits 0 as EARNED](docs/img/prove-go.png)
 
 Commands that need a package path rather than a file get `{dir}`; commands that need the file get `{file}`:
 
@@ -171,6 +124,8 @@ npm test
 node dist/bin/canfail.js scan /path/to/your/project --no-mutate
 ```
 
+![the clean fixture: every mutant killed, zero findings, exit 0](docs/img/clean.png)
+
 `fixtures/clean-app` matters as much as the broken one. A tool that reports findings everywhere is as useless as one that reports none; the clean fixture is the check that stops canfail from becoming a finding generator, and it runs in CI on every push.
 
 ### Verify the tool itself
@@ -181,15 +136,7 @@ A scanner that prints "0 problems" is indistinguishable from a scanner that is b
 npm run verify:fixtures
 ```
 
-```
-  planted defects matched: 13
-    ok    VACUOUS  src/scoring.test.ts:12  calls score() and asserts nothing
-    ok    SILENT   src/health.ts:19  database unreachable, endpoint still returns ok:true
-    ok    MOCK     src/ui/ResultScreen.ts:8  MOCK_PRODUCT reachable from the production entry point
-    ok    SURVIVED src/scoring.ts:20  allergen threshold comparison can be inverted and the suite stays green
-    ...
-  canfail caught every planted defect and reported nothing else
-```
+![verify-fixtures matching every planted defect in the manifest and reporting nothing else](docs/img/verify-fixtures.png)
 
 It exits `1` on a miss **and** on a false positive, so weakening a detector turns CI red.
 
@@ -201,20 +148,7 @@ The same argument applies one level up: `verify-fixtures` passing is only meanin
 ./scripts/prove-gate-can-fail.sh
 ```
 
-```
-  1. baseline: the gate should be green
-     exit 0, as expected
-
-  2. breaking the skipped-test detector
-    MISS  VACUOUS  src/scoring.test.ts:32  the one test covering the unsafe threshold is it.skip
-  fixture verification FAILED: 1 missed, 0 unexpected
-     exit 1, the planted defect was reported as missed
-
-  3. restoring the detector
-     exit 0, green again
-
-  PROVEN: green -> red -> green. The gate can fail.
-```
+![breaking a detector turns the gate red, restoring it turns the gate green again](docs/img/gate-can-fail.png)
 
 ### canfail scans canfail
 
