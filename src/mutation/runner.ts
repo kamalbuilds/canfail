@@ -4,6 +4,7 @@
  * Requirements 3.3, 3.6.
  */
 import { spawnSync } from "node:child_process";
+import { relative } from "node:path";
 
 export type RunOutcome = "green" | "red" | "timeout" | "error";
 
@@ -21,9 +22,20 @@ export interface RunnerOptions {
   timeoutMs: number;
 }
 
+/**
+ * Test runners treat the argument as a filename filter matched against paths
+ * relative to the project root. An absolute path breaks that match whenever the
+ * root is reached through a symlink (/tmp -> /private/tmp on macOS), which reads
+ * back as "suite is red" and silently skips the probe. Always pass a relative path.
+ */
+export function buildCommand(testFile: string, opts: Pick<RunnerOptions, "cwd" | "testCommand">): string {
+  const rel = relative(opts.cwd, testFile) || testFile;
+  return `${opts.testCommand} ${JSON.stringify(rel)}`;
+}
+
 export function runTestFile(testFile: string, opts: RunnerOptions): RunResult {
   const started = Date.now();
-  const command = `${opts.testCommand} ${JSON.stringify(testFile)}`;
+  const command = buildCommand(testFile, opts);
   const res = spawnSync(command, {
     cwd: opts.cwd,
     shell: true,
