@@ -96,16 +96,14 @@ export function detectSilent(filePath: string, sourceText?: string): Finding[] {
         );
       });
 
-      // A catch that neither rethrows, logs, nor returns anything is a pure swallow.
-      const body = block.getFullText();
-      if (
-        block.getStatements().length === 0 ||
-        (!/\bthrow\b/.test(body) && !/\breturn\b/.test(body) && !/console\.|log|report|record/i.test(body))
-      ) {
+      // A catch body with no statements at all cannot do anything with the error.
+      // Any statement is treated as handling: a call may log, notify, or report,
+      // and canfail deliberately under-reports rather than guess at intent.
+      if (block.getStatements().length === 0) {
         push(
           "success-on-error",
           node,
-          `catch block discards the error without rethrowing, logging, or returning a failure`,
+          `catch block is empty: the error is discarded without being rethrown, logged, or reported`,
         );
       }
     }

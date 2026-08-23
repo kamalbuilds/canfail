@@ -13,13 +13,27 @@ import type { Finding, MockSubtype } from "../types.js";
 import { findingId } from "../types.js";
 import { buildImportGraph, findEntryPoints, importChain, reachableFrom } from "../graph/importer.js";
 
-const MOCK_ID_RE = /^(MOCK|DEMO|FAKE|DUMMY|SAMPLE|STUB|PLACEHOLDER|TEST|SEED)_/;
+const MOCK_ID_RE = /^(MOCK|DEMO|FAKE|DUMMY|SAMPLE|STUB|PLACEHOLDER)_/;
 const MOCK_CAMEL_RE = /^(mock|demo|fake|dummy|sample|stub|placeholder)[A-Z]\w*/;
 const MOCK_PATH_RE = /(^|\/)(__mocks__|__fixtures__|mocks?|fixtures?|stubs?)(\/|$)/;
+/** `MOCK_ID_RE` names a pattern that matches mocks; it is not itself mock data. */
+const PATTERN_NAME_RE = /_(RE|REGEX|REGEXP|PATTERN|MATCHER)$/;
 
 /** Identifiers whose name announces they are not real data. */
 function isMockName(name: string): boolean {
+  if (PATTERN_NAME_RE.test(name)) return false;
   return MOCK_ID_RE.test(name) || MOCK_CAMEL_RE.test(name);
+}
+
+/** A regular expression or a set of string patterns is code, not placeholder data. */
+function isPatternValue(init: Node | undefined): boolean {
+  if (!init) return false;
+  if (Node.isRegularExpressionLiteral(init)) return true;
+  if (Node.isNewExpression(init)) {
+    const target = init.getExpression().getText();
+    if (target === "RegExp" || target === "Set" || target === "Map") return true;
+  }
+  return false;
 }
 
 export interface MockOptions {
@@ -71,7 +85,7 @@ export function detectMock(opts: MockOptions): Finding[] {
       // 4.1 — a declared identifier that names itself a mock.
       if (Node.isVariableDeclaration(node)) {
         const name = node.getName();
-        if (isMockName(name)) {
+        if (isMockName(name) && !isPatternValue(node.getInitializer())) {
           const init = node.getInitializer();
           const shape = init
             ? Node.isObjectLiteralExpression(init)

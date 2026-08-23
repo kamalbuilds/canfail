@@ -31,6 +31,7 @@ program
   .option("--timeout <ms>", "per-test-run timeout for the mutation probe", "30000")
   .option("--max-mutants <n>", "mutants attempted per test file", "12")
   .option("--only <kinds>", `comma-separated subset of ${ALL_KINDS.join(",")}`)
+  .option("--exclude <paths>", "comma-separated path substrings to skip, e.g. fixtures,vendor")
   .option("--max-findings <n>", "gate threshold: fail above this many findings", "0")
   .option("-q, --quiet", "suppress progress output on stderr", false)
   .action((path: string, options: Record<string, unknown>) => {
@@ -57,6 +58,12 @@ program
         timeoutMs: Number(options.timeout),
         maxMutantsPerTest: Number(options.maxMutants),
         only,
+        exclude: options.exclude
+          ? String(options.exclude)
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined,
         onProgress: quiet ? undefined : (m) => process.stderr.write(`  ${m}\n`),
       });
 

@@ -36,6 +36,15 @@ describe("mutant generator", () => {
     expect(JSON.stringify(targets(code))).toBe(JSON.stringify(targets(code)));
   });
 
+  // The probe showed the .tsx branch was unprotected: parsing a .tsx file as .ts
+  // silently yields the wrong targets and no test noticed.
+  it("parses a .tsx file as JSX rather than as plain TypeScript", () => {
+    const code = `export const Badge = (props: { on: boolean }) => <span data-on={props.on ? true : false} />;`;
+    const found = collectMutationTargets("/virtual/Badge.tsx", code);
+    expect(found.filter((t) => t.kind === "boolean-flip").length).toBeGreaterThan(0);
+    expect(found.some((t) => t.kind === "conditional-negation")).toBe(true);
+  });
+
   it("skips a line marked canfail-no-mutate", () => {
     const code = `// canfail-no-mutate\nexport const enabled = true;`;
     expect(targets(code).filter((t) => t.kind === "boolean-flip")).toHaveLength(0);

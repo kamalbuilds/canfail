@@ -27,6 +27,22 @@ describe("FileGuard", () => {
     expect(readFileSync(file, "utf8")).toBe("const a = 1;\n");
   });
 
+  // The probe replaced snapshot()'s return value with a sentinel and every test
+  // stayed green: nothing asserted on what it hands back.
+  it("returns the original content from snapshot()", () => {
+    const file = tempFile("const a = 1;\n");
+    const guard = new FileGuard();
+    expect(guard.snapshot(file)).toBe("const a = 1;\n");
+  });
+
+  it("keeps returning the first snapshot after the file changed on disk", () => {
+    const file = tempFile("original\n");
+    const guard = new FileGuard();
+    guard.snapshot(file);
+    writeFileSync(file, "changed\n", "utf8");
+    expect(guard.snapshot(file)).toBe("original\n");
+  });
+
   it("reports a dirty tree when a guarded file was changed behind its back", () => {
     const file = tempFile("const a = 1;\n");
     const guard = new FileGuard();

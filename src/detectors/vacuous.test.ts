@@ -47,6 +47,29 @@ describe("VACUOUS detector", () => {
     expect(findings.filter((f) => f.subtype === "tautological")).toHaveLength(1);
   });
 
+  // canfail's own probe proved the tautology rule was unconstrained on these two
+  // paths: the literal-subject branch and the argument check could both be inverted
+  // with the suite still green. These two tests kill those mutants.
+  it("does not flag a literal subject compared against a computed value", () => {
+    const findings = at(`
+      import { it, expect } from "vitest";
+      it("matches the computed total", () => {
+        expect(42).toBe(computeTotal(orders));
+      });
+    `);
+    expect(findings.filter((f) => f.subtype === "tautological")).toHaveLength(0);
+  });
+
+  it("flags a literal subject with a zero-argument matcher", () => {
+    const findings = at(`
+      import { it, expect } from "vitest";
+      it("is truthy", () => {
+        expect(1).toBeTruthy();
+      });
+    `);
+    expect(findings.map((f) => f.subtype)).toContain("tautological");
+  });
+
   it("flags a skipped test and a focused test", () => {
     const findings = at(`
       import { it, expect } from "vitest";

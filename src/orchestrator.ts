@@ -3,7 +3,7 @@
  * Requirements 1.1 - 1.5, 6.1 - 6.3.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { isTestFile } from "./ast/index.js";
 import { detectMock } from "./detectors/mock.js";
 import { detectSilent } from "./detectors/silent.js";
@@ -23,6 +23,8 @@ export interface ScanOptions {
   timeoutMs: number;
   maxMutantsPerTest: number;
   only?: DetectorKind[];
+  /** Path substrings to skip, matched against the project-relative path. */
+  exclude?: string[];
   onProgress?: (msg: string) => void;
   /** Frozen timestamp, so fixture verification is byte-reproducible. */
   now?: string;
@@ -37,7 +39,11 @@ export function scan(opts: ScanOptions): ScanResult {
   const root = opts.root;
   if (!existsSync(root)) throw new Error(`path not found: ${root}`);
 
-  const files = listSourceFiles(root);
+  const excludes = opts.exclude ?? [];
+  const files = listSourceFiles(root).filter((f) => {
+    const rel = relative(root, f);
+    return !excludes.some((e) => e.length > 0 && rel.includes(e));
+  });
   const wants = (k: DetectorKind) => !opts.only || opts.only.includes(k);
   const findings: Finding[] = [];
 

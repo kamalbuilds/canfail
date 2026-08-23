@@ -1,0 +1,25 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "verify-fixtures-on-detector-change",
+      "description": "A detector edit that stops catching a planted defect is the exact failure this project exists to prevent. Re-run fixture verification the moment a detector changes.",
+      "trigger": "PostFileSave",
+      "matcher": "src/detectors/.*\\.ts$|src/mutation/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "npm run build --silent && node dist/bin/canfail.js verify-fixtures fixtures/greenwashed-app --no-mutate"
+      }
+    },
+    {
+      "name": "spec-traceability-reminder",
+      "description": "Every detector maps to a numbered acceptance criterion in .kiro/specs/vacuity-detection/requirements.md. Flag new detector logic that carries no requirement reference.",
+      "trigger": "PostFileSave",
+      "matcher": "src/detectors/.*\\.ts$",
+      "action": {
+        "type": "agent",
+        "prompt": "The file just saved is a canfail detector. Read .kiro/specs/vacuity-detection/requirements.md. Confirm the file's header comment cites the acceptance criteria it implements, and that every branch that emits a Finding traces to one. If a behaviour has no requirement, say which requirement should be added and stop. Do not edit the file."
+      }
+    }
+  ]
+}
