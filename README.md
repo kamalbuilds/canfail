@@ -286,6 +286,10 @@ fixtures/greenwashed-app  a green suite with 13 planted defects
 
 This project was specified before it was written, and the specs are in the repo.
 
+The full development timeline, the technical decisions and their rationale, and the five real
+failures that shaped this tool (including the SIGKILL that committed a mutant) are in
+[DEVLOG.md](DEVLOG.md).
+
 **Spec-driven development** - [`.kiro/specs/vacuity-detection/`](.kiro/specs/vacuity-detection/)
 - [`requirements.md`](.kiro/specs/vacuity-detection/requirements.md): 7 user stories, 32 numbered acceptance criteria in EARS syntax (`WHEN ... THEN the system SHALL ...`). Every detector behaviour traces to one.
 - [`design.md`](.kiro/specs/vacuity-detection/design.md): the mermaid architecture diagram, the module boundary table, the `Finding` / `MutantDescriptor` / `CanfailReport` interfaces implemented verbatim in `src/types.ts`, the six-step probe algorithm, an eight-row error-handling table, and seven explicit non-goals.
